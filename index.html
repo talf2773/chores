@@ -24,6 +24,7 @@
   body {
     font-family: 'Heebo', sans-serif; background: var(--bg); color: var(--text);
     min-height: 100vh; padding: 20px;
+    overflow-x: hidden;
     background-image: radial-gradient(circle at 20% 20%, #ffe0e0 0%, transparent 40%),
                       radial-gradient(circle at 80% 80%, #d0f5f3 0%, transparent 40%);
   }
@@ -84,7 +85,7 @@
   }
   .expand-panel.open { display: block; }
 
-  #panel-shop, #shop-card { max-width: 960px; }
+  #panel-shop, #shop-card { max-width: min(960px, 100%); }
 
   /* ── Section titles inside panel ── */
   .day-section-title {
@@ -180,7 +181,7 @@
   .cat-selector { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 14px; }
   .cat-btn { font-family: 'Heebo', sans-serif; font-size: 0.8rem; font-weight: 600; padding: 6px 14px; border: 2px solid #e0e0e0; border-radius: 50px; background: white; cursor: pointer; transition: all 0.2s; color: #636e72; }
   .cat-btn.selected { border-color: var(--cat-color); background: var(--cat-color); color: white; }
-  .shop-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; min-width: 0; }
+  .shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
   .shop-col { background: #fafafa; border-radius: 14px; padding: 12px; border: 1px solid #f0f0f0; }
   .shop-col-header { display: flex; align-items: center; gap: 7px; margin-bottom: 9px; }
   .shop-col-icon { font-size: 1.3rem; }
@@ -1164,7 +1165,15 @@ function switchPage(name, btn) {
   document.querySelectorAll('.nav-btn').forEach(function(b){ b.classList.remove('active'); });
   document.getElementById('page-'+name).classList.add('active');
   btn.classList.add('active');
-  if(name==='shop') renderShopGrid();
+  if(name==='home') {
+    // ensure chores panel is open
+    document.getElementById('panel-chores').classList.add('open');
+    document.getElementById('chores-card').classList.add('open');
+    buildDayCards(todayData, 'today-cards', 'today-date-label');
+    buildDayCards(tomorrowData, 'tomorrow-cards', 'tomorrow-date-label');
+    buildWASendBtns();
+  }
+  if(name==='shop') { renderShopGrid(); }
   if(name==='friday') {
     renderComingSummary();
     renderPoll();
