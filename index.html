@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="מטלות הבית">
 <meta name="theme-color" content="#ff6b6b">
-<link rel="apple-touch-icon" sizes="180x180" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23fff5f5'/%3E%3Crect x='62' y='18' width='10' height='20' rx='3' fill='%23e55a5a'/%3E%3Cpolygon points='10,52 50,18 90,52' fill='%23ff6b6b'/%3E%3Cpolygon points='14,52 50,23 86,52' fill='%23ff8585'/%3E%3Crect x='22' y='50' width='56' height='38' rx='3' fill='%23fff0f0'/%3E%3Crect x='42' y='68' width='16' height='20' rx='3' fill='%23ff6b6b'/%3E%3Ccircle cx='55' cy='78' r='1.5' fill='white'/%3E%3Crect x='27' y='57' width='14' height='12' rx='2' fill='%234ecdc4'/%3E%3Cline x1='34' y1='57' x2='34' y2='69' stroke='white' stroke-width='1.5'/%3E%3Cline x1='27' y1='63' x2='41' y2='63' stroke='white' stroke-width='1.5'/%3E%3Crect x='59' y='57' width='14' height='12' rx='2' fill='%234ecdc4'/%3E%3Cline x1='66' y1='57' x2='66' y2='69' stroke='white' stroke-width='1.5'/%3E%3Cline x1='59' y1='63' x2='73' y2='63' stroke='white' stroke-width='1.5'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" sizes="180x180" id="app-icon" href="">
 <title>מטלות הבית</title>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Heebo:wght@300;400;600;700&family=Rubik:wght@700;800&family=Secular+One&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -837,7 +837,7 @@ function autoCategory(name) {
     'מיץ','מים','שתייה','קולה','סודה','בירה','יין','אלכוהול','ליקר',
     'טונה','סרדין','שימורים','קרם','ממרח','ממרחים','רסק','עגבניות',
     'ספגטי','מקרוני','פנה','ניוקי','לזניה',
-    'גלידה','שרבט','קרטיב','אייסבר','מקלון'
+    'גלידה','שרבט','קרטיב','אייסבר','מקלון','נוטלה','חמאת בוטנים','לוטוס','שוקו','ממרח שוקולד'
   ];
   for(var i=0;i<supermarket.length;i++) if(n.includes(supermarket[i])) return 'סופר';
   return 'אחר';
@@ -1372,6 +1372,59 @@ db.ref('friday').on('value', function(snap) {
 });
 
 } // end if(db)
+
+
+// Generate app icon as PNG
+(function(){
+  try {
+    var canvas = document.createElement('canvas');
+    canvas.width = 180; canvas.height = 180;
+    var ctx = canvas.getContext('2d');
+    // Background
+    ctx.fillStyle = '#fff5f5';
+    ctx.beginPath();
+    ctx.roundRect(0, 0, 180, 180, 36);
+    ctx.fill();
+    // Chimney
+    ctx.fillStyle = '#e55a5a';
+    ctx.fillRect(112, 32, 18, 36);
+    // Roof
+    ctx.fillStyle = '#ff6b6b';
+    ctx.beginPath();
+    ctx.moveTo(18, 94); ctx.lineTo(90, 32); ctx.lineTo(162, 94);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#ff8585';
+    ctx.beginPath();
+    ctx.moveTo(25, 94); ctx.lineTo(90, 40); ctx.lineTo(155, 94);
+    ctx.closePath(); ctx.fill();
+    // Body
+    ctx.fillStyle = '#fff0f0';
+    ctx.fillRect(40, 90, 100, 68);
+    // Door
+    ctx.fillStyle = '#ff6b6b';
+    ctx.beginPath();
+    ctx.roundRect(75, 122, 29, 36, 5);
+    ctx.fill();
+    // Left window
+    ctx.fillStyle = '#4ecdc4';
+    ctx.beginPath();
+    ctx.roundRect(48, 102, 25, 22, 4);
+    ctx.fill();
+    ctx.strokeStyle = 'white'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(60,102); ctx.lineTo(60,124); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(48,113); ctx.lineTo(73,113); ctx.stroke();
+    // Right window
+    ctx.fillStyle = '#4ecdc4';
+    ctx.beginPath();
+    ctx.roundRect(107, 102, 25, 22, 4);
+    ctx.fill();
+    ctx.beginPath(); ctx.moveTo(119,102); ctx.lineTo(119,124); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(107,113); ctx.lineTo(132,113); ctx.stroke();
+    // Set icon
+    var link = document.getElementById('app-icon');
+    if(link) link.href = canvas.toDataURL('image/png');
+  } catch(e) {}
+})();
 
 </script>
 </body>
