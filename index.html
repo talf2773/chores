@@ -8,15 +8,23 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="מטלות הבית">
 <meta name="theme-color" content="#ff6b6b">
-<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23ff6b6b'/><text y='.9em' font-size='72' x='50%' text-anchor='middle'>🏠</text></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'> <!-- background --> <rect width='100' height='100' rx='22' fill='%23fff5f5'/> <!-- chimney --> <rect x='62' y='18' width='10' height='20' rx='3' fill='%23e55a5a'/> <!-- roof --> <polygon points='10,52 50,18 90,52' fill='%23ff6b6b'/> <polygon points='10,52 50,22 90,52' fill='%23ff8585'/> <!-- house body --> <rect x='22' y='50' width='56' height='38' rx='3' fill='%23fff0f0'/> <!-- door --> <rect x='42' y='68' width='16' height='20' rx='3' fill='%23ff6b6b'/> <circle cx='55' cy='78' r='1.5' fill='white'/> <!-- left window --> <rect x='27' y='57' width='14' height='12' rx='2' fill='%234ecdc4'/> <line x1='34' y1='57' x2='34' y2='69' stroke='white' stroke-width='1.5'/> <line x1='27' y1='63' x2='41' y2='63' stroke='white' stroke-width='1.5'/> <!-- right window --> <rect x='59' y='57' width='14' height='12' rx='2' fill='%234ecdc4'/> <line x1='66' y1='57' x2='66' y2='69' stroke='white' stroke-width='1.5'/> <line x1='59' y1='63' x2='73' y2='63' stroke='white' stroke-width='1.5'/></svg>">
 <title>מטלות הבית</title>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Heebo:wght@300;400;600;700&family=Rubik:wght@700;800&family=Secular+One&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script>
-  const firebaseConfig = { databaseURL: 'https://chores-family-d2fe0-default-rtdb.europe-west1.firebasedatabase.app' };
-  firebase.initializeApp(firebaseConfig);
-  var db = firebase.database();
+  var db = null;
+  try {
+    const firebaseConfig = { databaseURL: 'https://chores-family-d2fe0-default-rtdb.europe-west1.firebasedatabase.app' };
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.database();
+  } catch(e) {
+    // Firebase failed - create dummy db so app still works offline
+    db = {
+      ref: function() { return { set:function(){}, on:function(){}, once:function(ev,cb){ cb({val:function(){return null;}}); } }; }
+    };
+  }
 </script>
 <style>
   :root { --bg: #fdf6ec; --text: #2d3436; --muted: #b2bec3; }
@@ -284,10 +292,9 @@
 </head>
 <body>
 
+<div class="page active" id="page-home">
 <h1>🏠 מטלות הבית</h1>
 <p class="subtitle" id="page-subtitle"></p>
-
-<div class="page active" id="page-home">
 <!-- ═══ CHORES CARD ═══ -->
 <div class="summary-card open" id="chores-card">
   <div class="card-icon">📋</div>
@@ -357,7 +364,7 @@
     <button class="shop-add-btn" id="shop-add-btn">+</button>
     <button class="shop-clear-btn" id="shop-clear-btn">נקה שנרכש ✓</button>
   </div>
-  <div class="cat-selector" id="cat-selector">
+  <div class="cat-selector" id="cat-selector" style="display:none;">
     <button class="cat-btn selected" style="--cat-color:#45b7d1" data-cat="סופר">🛒 סופר</button>
     <button class="cat-btn"          style="--cat-color:#4ecdc4" data-cat="ירקות ופירות">🥦 ירקות</button>
     <button class="cat-btn"          style="--cat-color:#f7a440" data-cat="קצבייה">🥩 קצבייה</button>
@@ -551,14 +558,19 @@ var todayData=null, tomorrowData=null;
     }
   }
   if(!todayData){todayData=schedule[0];tomorrowData=schedule[1]||null;}
+})();
 
+function initChoresPage() {
   buildDayCards(todayData,    'today-cards',    'today-date-label');
   buildDayCards(tomorrowData, 'tomorrow-cards', 'tomorrow-date-label');
+  var sub = document.getElementById('chores-card-sub');
+  if(sub) sub.innerHTML='<span style="color:#636e72;font-size:0.82rem">מהיום עד 1/4/2026</span>';
+  buildWASendBtns();
+}
 
-  // Chores card subtitle — show date only
-  document.getElementById('chores-card-sub').innerHTML=
-    '<span style="color:#636e72;font-size:0.82rem">מהיום עד 1/4/2026</span>';
-})();
+document.addEventListener('DOMContentLoaded', function() {
+  initChoresPage();
+});
 
 // ═══ CALENDAR CHILD VIEW ═══
 document.getElementById('cal-child-row').addEventListener('click', function(e){
@@ -635,19 +647,17 @@ var selectedCat='סופר', shopItems=[];
 
 function loadShop(){
   try{
+    // Try localStorage as quick cache
     var saved=localStorage.getItem('shop_items_v5');
     if(saved){
       shopItems=JSON.parse(saved);
     } else {
-      // migrate from v4 or start fresh with defaults
-      var oldSaved=localStorage.getItem('shop_items_v4');
-      var oldItems=oldSaved?JSON.parse(oldSaved):[];
       var defaults=[
         {id:1,name:'לחם אמריקה',qty:'',cat:'סופר',done:false},
         {id:2,name:'חלב',qty:'',cat:'סופר',done:false},
         {id:3,name:'חומוס מי ומי',qty:'',cat:'סופר',done:false}
       ];
-      shopItems=defaults.concat(oldItems);
+      shopItems=defaults;
       saveShop();
     }
     var migrate={'כללי':'סופר','מאפים':'סופר','ניקיון':'סופר','מוצרי חלב':'סופר','חלב וביצים':'סופר','בשר ודגים':'קצבייה'};
@@ -661,7 +671,7 @@ function loadShop(){
 }
 function saveShop(){
   try{localStorage.setItem('shop_items_v5',JSON.stringify(shopItems));}catch(e){}
-  try{db.ref('shop/items').set(shopItems);}catch(e){}
+  try{if(db)db.ref('shop/items').set(shopItems);}catch(e){}
 }
 
 function updateShopSummary(){
@@ -759,22 +769,92 @@ document.getElementById('shop-grid').addEventListener('click', function(e){
   if(cancel){ renderShopGrid(); }
 });
 
-// Cat selector
-document.getElementById('cat-selector').addEventListener('click', function(e){
-  var btn=e.target.closest('.cat-btn');
-  if(!btn) return;
-  document.querySelectorAll('.cat-btn').forEach(function(b){b.classList.remove('selected');});
-  btn.classList.add('selected');
-  selectedCat=btn.dataset.cat;
-});
+
 
 // Add item button
-document.getElementById('shop-add-btn').addEventListener('click', function(){
+document.// ═══ AUTO CATEGORIZATION ═══
+function autoCategory(name) {
+  var n = name.toLowerCase();
+
+  var veggies = [
+    // פירות
+    'תפוח','בננה','תפוז','לימון','ענב','אבטיח','מלון','תות','אפרסק','שזיף','אגס',
+    'קלמנטינה','מנדרינה','מנגו','אננס','דובדבן','רימון','תאנה','פפאיה','קיווי',
+    'משמש','נקטרינה','פסיפלורה','ליצ׳י','גויאבה','קוקוס','אבוקדו','צבר','תמר',
+    'שסק','פלפל אדום','פלפל צהוב','פלפל ירוק','תמרינד','פירות','פרי',
+    // ירקות
+    'עגבני','מלפפון','גזר','פלפל','חסה','כרוב','ברוקולי','כרובית','תרד','קישוא',
+    'דלעת','בצל','שום','פטריה','אספרגוס','סלרי','שמיר','נענע','פטרוזיליה',
+    'כוסברה','בזיליקום','עירית','רוקט','בטטה','תפוח אדמה','תפו״א','לפת','סלק',
+    'ארטישוק','אפונה','שעועית','עדשים','חציל','כרישה','פנל','צנון','מולי',
+    'עלי תרד','עלים','ירק','ירקות','עשבי תיבול','קולרבי','אנדיב','עגבניות שרי',
+    'תירס','כוכב ים','חמאית','בייבי','קייל','ג׳ינג׳ר','שאלוט',
+    // אגוזים ויבשים
+    'שקד','אגוז','צימוק','פיסטוק','קשיו','פקאן','מקדמיה','צנוברים','גרעינים',
+    'חמניות','דלעת','זרעים','פירות יבשים','חמוציות','קרנברי','תמרים'
+  ];
+
+  var meat = [
+    // בשר
+    'עוף','חזה עוף','כרעיים','שוקיים','כנפיים','פרגיות','ירך','הודו','ברווז','אווז',
+    'בשר','סטייק','קבב','שניצל','המבורגר','כבש','טלה','עגל','פרה','בקר',
+    'כבד','לב','טחול','ריאה','טחון','אנטריקוט','פילה','שפונדרה','צלעות',
+    'אסאדו','בריסקט','רוסטביף','קרפצ׳יו',
+    // נקניקיות ומעובד
+    'נקניק','נקניקיות','סלמי','פסטרמה','קבנוס','צ׳וריסו','בייקון','פפרוני',
+    // דגים
+    'דג','סלמון','טונה','דניס','לברק','נסיכת הנילוס','בקלה','הליבוט','מוסר',
+    'אמנון','קרפיון','פורל','מקרל','סרדין','שרימפס','קלמרי','קמברי',
+    'קצב','קצביה','קצבייה','דגים','פירות ים'
+  ];
+
+  var pharm = [
+    // טיפוח
+    'שמפו','מרכך שיער','סבון','ג׳ל רחצה','קרם','תחליב','לוסיון','סרום',
+    'מסכה','פילינג','טונר','מיצלר','מייק אפ','פודרה','ריג׳','מסקרה',
+    'אייליינר','ליפסטיק','לק','אצטון','פרפיום','דאודורנט','אנטיפרספירנט',
+    'קרם גוף','קרם פנים','קרם ידיים','קרם עיניים','אחרי שמש','קרם הגנה',
+    'ספריי שיער','מוס','וקס שיער','שמן שיער','אפטר שייב',
+    'מברשת שיניים','משחת שיניים','חוט דנטלי','שטיפת פה','לייסטרין',
+    // ניקיון
+    'אבקת כביסה','נוזל כביסה','מרכך כביסה','אקונומיקה','פיירי','ממחטות',
+    'נייר טואלט','מגבות נייר','שקיות','שקיות זבל','ניקוי','מנקה','חומר ניקוי',
+    'וויפס','מגבונים','ספוג','מטאטא','דלי','כפפות','כלוריט','אמוניה','חומץ',
+    // תרופות
+    'תרופה','כדור','קפסולה','סירופ','טיפות','משחה','אנטיביוטיק','אנטיהיסטמין',
+    'אספירין','פרמול','אקמול','נורופן','ויטמין','מגנזיום','אבץ','ברזל','אומגה',
+    'פרוביוטיקה','תחבושת','פלסטר','גאזה','אלכוהול','חיטוי','סדין'
+  ];
+
+  for(var i=0;i<veggies.length;i++) if(n.includes(veggies[i])) return 'ירקות ופירות';
+  for(var i=0;i<meat.length;i++) if(n.includes(meat[i])) return 'קצבייה';
+  for(var i=0;i<pharm.length;i++) if(n.includes(pharm[i])) return 'פארם';
+  // Common supermarket food items → סופר
+  var supermarket = [
+    'חלב','גבינה','יוגורט','שמנת','חמאה','ביצ','ביצים','מוצרלה','קוטג','לבן',
+    'לחם','פיתה','בגט','חלה','לחמניה','קרקר','מצה','טוסט',
+    'פסטה','אורז','קוסקוס','קינואה','עדשים','חומוס','טחינה','פול','שעועית',
+    'שמן','זית','שמן זית','חומץ','סויה','רוטב','קטשופ','מיונז','חרדל','פסטו',
+    'קפה','תה','קקאו','סוכר','מלח','פלפל','כורכום','פפריקה','קינמון','תבלין',
+    'קמח','שמרים','אבקת אפייה','שוקולד','ריבה','דבש','סילאן','וופלים',
+    'עוגיות','ביסקויט','צ׳יפס','פופקורן','גרנולה','דגני בוקר','שיבולת שועל',
+    'מיץ','מים','שתייה','קולה','סודה','בירה','יין','אלכוהול','ליקר',
+    'טונה','סרדין','שימורים','קרם','ממרח','ממרחים','רסק','עגבניות',
+    'ספגטי','מקרוני','פנה','ניוקי','לזניה',
+    'גלידה','שרבט','קרטיב','אייסבר','מקלון'
+  ];
+  for(var i=0;i<supermarket.length;i++) if(n.includes(supermarket[i])) return 'סופר';
+  return 'אחר';
+}
+
+getElementById('shop-add-btn').addEventListener('click', function(){
   var inp=document.getElementById('shop-input');
   var qty=document.getElementById('qty-input');
   var name=inp.value.trim();
   if(!name) return;
-  shopItems.push({id:Date.now(),name:name,qty:qty.value.trim(),cat:selectedCat,done:false});
+  // Auto-categorize: veggies→ירקות, meat→קצבייה, pharm→פארם, rest→אחר
+  var finalCat = autoCategory(name);
+  shopItems.push({id:Date.now(),name:name,qty:qty.value.trim(),cat:finalCat,done:false});
   saveShop();updateShopSummary();renderShopGrid();
   inp.value='';qty.value='';inp.focus();
 });
@@ -915,7 +995,7 @@ function loadFriday() {
 }
 function saveFriday() {
   try { localStorage.setItem('friday_v2', JSON.stringify(fridayData)); } catch(e) {}
-  try { db.ref('friday').set({coming: fridayData.coming, poll: fridayData.poll, tasks: fridayData.tasks}); } catch(e) {}
+  try { if(db) db.ref('friday').set({coming: fridayData.coming, poll: fridayData.poll, tasks: fridayData.tasks}); } catch(e) {}
 }
 
 function toggleFridayCard(name) {
@@ -1166,12 +1246,9 @@ function switchPage(name, btn) {
   document.getElementById('page-'+name).classList.add('active');
   btn.classList.add('active');
   if(name==='home') {
-    // ensure chores panel is open
     document.getElementById('panel-chores').classList.add('open');
     document.getElementById('chores-card').classList.add('open');
-    buildDayCards(todayData, 'today-cards', 'today-date-label');
-    buildDayCards(tomorrowData, 'tomorrow-cards', 'tomorrow-date-label');
-    buildWASendBtns();
+    initChoresPage();
   }
   if(name==='shop') { renderShopGrid(); }
   if(name==='friday') {
@@ -1186,11 +1263,37 @@ updateShopSummary();
 renderShopGrid();
 initWA();
 
+// Always open on home page, scrolled to top
+(function(){
+  // Switch to home
+  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+  document.querySelectorAll('.nav-btn').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('page-home').classList.add('active');
+  document.getElementById('nav-home').classList.add('active');
+  // Scroll to top
+  window.scrollTo(0, 0);
+})();
+
 // ═══ FIREBASE SYNC ═══
-// Listen to shop changes
+if(db) {
+// Load shop from Firebase on startup (primary source)
+db.ref('shop/items').once('value', function(snap) {
+  var data = snap.val();
+  if(data && Array.isArray(data) && data.length > 0) {
+    shopItems = data;
+    try { localStorage.setItem('shop_items_v5', JSON.stringify(shopItems)); } catch(e) {}
+    updateShopSummary();
+    if(document.getElementById('panel-shop').classList.contains('open')) renderShopGrid();
+  } else if(!data) {
+    // No data in Firebase yet — push local defaults
+    db.ref('shop/items').set(shopItems);
+  }
+});
+
+// Listen to live changes from other family members
 db.ref('shop/items').on('value', function(snap) {
   var data = snap.val();
-  if(data && JSON.stringify(data) !== JSON.stringify(shopItems)) {
+  if(data && Array.isArray(data) && JSON.stringify(data) !== JSON.stringify(shopItems)) {
     shopItems = data;
     try { localStorage.setItem('shop_items_v5', JSON.stringify(shopItems)); } catch(e) {}
     updateShopSummary();
@@ -1214,7 +1317,31 @@ db.ref('tasks').on('value', function(snap) {
   }
 });
 
-// Listen to friday changes
+// Load friday from Firebase on startup (primary source)
+db.ref('friday').once('value', function(snap) {
+  var data = snap.val();
+  if(data) {
+    if(data.coming) fridayData.coming = data.coming;
+    if(data.poll && Array.isArray(data.poll)) fridayData.poll = data.poll;
+    else if(data.poll && typeof data.poll === 'object') {
+      // Firebase might store array as object with numeric keys
+      fridayData.poll = Object.values(data.poll);
+    }
+    if(data.tasks) {
+      data.tasks.forEach(function(pt){
+        var t = fridayData.tasks.find(function(x){ return x.id===pt.id; });
+        if(t) { t.done = pt.done; if(!t.auto) t.assignees = pt.assignees; }
+      });
+    }
+    try { localStorage.setItem('friday_v2', JSON.stringify(fridayData)); } catch(e) {}
+    // Always re-render friday data even if not on friday page
+    renderComingSummary();
+    renderPoll();
+    renderFridayTasks();
+  }
+});
+
+// Listen to friday live changes
 db.ref('friday').on('value', function(snap) {
   var data = snap.val();
   if(!data) return;
@@ -1222,8 +1349,12 @@ db.ref('friday').on('value', function(snap) {
   if(data.coming && JSON.stringify(data.coming) !== JSON.stringify(fridayData.coming)) {
     fridayData.coming = data.coming; changed = true;
   }
-  if(data.poll && JSON.stringify(data.poll) !== JSON.stringify(fridayData.poll)) {
-    fridayData.poll = data.poll; changed = true;
+  var incomingPoll = data.poll;
+  if(incomingPoll && typeof incomingPoll === 'object' && !Array.isArray(incomingPoll)) {
+    incomingPoll = Object.values(incomingPoll);
+  }
+  if(incomingPoll && JSON.stringify(incomingPoll) !== JSON.stringify(fridayData.poll)) {
+    fridayData.poll = incomingPoll; changed = true;
   }
   if(data.tasks && JSON.stringify(data.tasks) !== JSON.stringify(fridayData.tasks)) {
     // preserve auto assignments
@@ -1242,6 +1373,8 @@ db.ref('friday').on('value', function(snap) {
     }
   }
 });
+
+} // end if(db)
 
 </script>
 </body>
