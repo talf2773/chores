@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="מטלות הבית">
-<meta name="theme-color" content="#ff6b6b">
+<meta name="theme-color" content="#1a1a1a">
 <link rel="apple-touch-icon" sizes="180x180" id="app-icon" href="">
 <title>מטלות הבית</title>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Heebo:wght@300;400;600;700&family=Rubik:wght@700;800&family=Secular+One&display=swap" rel="stylesheet">
@@ -1304,83 +1304,98 @@ setTimeout(function(){ initChoresPage(); }, 0);
 
 // ═══ FIREBASE SYNC ═══
 if(db) {
-// Load shop from Firebase on startup (primary source)
-db.ref('shop/items').once('value', function(snap) {
-  var data = snap.val();
-  if(data && Array.isArray(data) && data.length > 0) {
-    shopItems = data;
-    try { localStorage.setItem('shop_items_v5', JSON.stringify(shopItems)); } catch(e) {}
-    updateShopSummary();
-    if(document.getElementById('panel-shop').classList.contains('open')) renderShopGrid();
-  } else if(!data) {
-    // No data in Firebase yet — push local defaults
-    db.ref('shop/items').set(shopItems);
-  }
-});
+  var appReady = false;
+  // Mark app as ready after initial render
+  setTimeout(function(){ appReady = true; }, 500);
 
-// Listen to live changes from other family members
-db.ref('shop/items').on('value', function(snap) {
-  var data = snap.val();
-  if(data && Array.isArray(data) && JSON.stringify(data) !== JSON.stringify(shopItems)) {
-    shopItems = data;
-    try { localStorage.setItem('shop_items_v5', JSON.stringify(shopItems)); } catch(e) {}
-    updateShopSummary();
-    renderShopGrid(); // always re-render so data is ready
-  }
-});
-
-// Listen to task done changes
-db.ref('tasks').on('value', function(snap) {
-  var data = snap.val();
-  if(!data) return;
-  var changed = false;
-  Object.keys(data).forEach(function(key) {
-    try {
-      var current = localStorage.getItem('taskdone_'+key);
-      var incoming = data[key] ? '1' : null;
-      if(current !== incoming) {
-        if(incoming) localStorage.setItem('taskdone_'+key, '1');
-        else localStorage.removeItem('taskdone_'+key);
-        changed = true;
-      }
-    } catch(e) {}
-  });
-  // Only rebuild if something actually changed (sync from another device)
-  if(changed) {
-    buildDayCards(todayData, 'today-cards', 'today-date-label');
-    buildDayCards(tomorrowData, 'tomorrow-cards', 'tomorrow-date-label');
-  }
-});
-
-// Load friday from Firebase on startup (primary source)
-// 'on' listener handles initial load and live updates
-
-// Listen to friday live changes
-db.ref('friday').on('value', function(snap) {
-  var data = snap.val();
-  if(!data) return;
-  // Update coming
-  if(data.coming) fridayData.coming = data.coming;
-  // Update poll - handle Firebase array-as-object
-  if(data.poll) {
-    var poll = Array.isArray(data.poll) ? data.poll : Object.values(data.poll);
-    fridayData.poll = poll;
-  } else {
-    fridayData.poll = [];
-  }
-  // Update task done states
-  if(data.taskDone) {
-    fridayData.tasks.forEach(function(task){
-      if(data.taskDone[task.id] !== undefined) task.done = data.taskDone[task.id];
+  // ── SHOP ──
+  db.ref('shop/items').once('value', function(snap) {
+    var data = snap.val();
+    if(data && Array.isArray(data) && data.length > 0) {
+      shopItems = data;
+      try { localStorage.setItem('shop_items_v5', JSON.stringify(shopItems)); } catch(e) {}
+      updateShopSummary();
+      renderShopGrid();
+    } else if(!data) {
+      db.ref('shop/items').set(shopItems);
+    }
+    // Live sync after initial load
+    db.ref('shop/items').on('value', function(snap2) {
+      var d2 = snap2.val();
+      if(!d2 || !Array.isArray(d2)) return;
+      if(JSON.stringify(d2) === JSON.stringify(shopItems)) return;
+      shopItems = d2;
+      try { localStorage.setItem('shop_items_v5', JSON.stringify(shopItems)); } catch(e) {}
+      updateShopSummary();
+      renderShopGrid();
     });
-  }
-  try { localStorage.setItem('friday_v2', JSON.stringify({
-    coming: fridayData.coming, poll: fridayData.poll, taskDone: data.taskDone || {}
-  })); } catch(e) {}
-  renderComingSummary();
-  renderPoll();
-  renderFridayTasks();
-});
+  });
+
+  // ── TASK DONE SYNC ──
+  db.ref('tasks').on('value', function(snap) {
+    if(!appReady) return; // skip initial fire
+    var data = snap.val();
+    if(!data) return;
+    var changed = false;
+    Object.keys(data).forEach(function(key) {
+      try {
+        var cur = localStorage.getItem('taskdone_'+key);
+        var inc = data[key] ? '1' : null;
+        if(cur !== inc) {
+          if(inc) localStorage.setItem('taskdone_'+key, '1');
+          else localStorage.removeItem('taskdone_'+key);
+          changed = true;
+        }
+      } catch(e) {}
+    });
+    if(changed) {
+      buildDayCards(todayData, 'today-cards', 'today-date-label');
+      buildDayCards(tomorrowData, 'tomorrow-cards', 'tomorrow-date-label');
+    }
+  });
+
+  // ── FRIDAY ──
+  db.ref('friday').once('value', function(snap) {
+    var data = snap.val();
+    if(data) {
+      if(data.coming) fridayData.coming = data.coming;
+      if(data.poll) {
+        fridayData.poll = Array.isArray(data.poll) ? data.poll : Object.values(data.poll);
+      }
+      if(data.taskDone) {
+        fridayData.tasks.forEach(function(t){
+          if(data.taskDone[t.id] !== undefined) t.done = data.taskDone[t.id];
+        });
+      }
+      try { localStorage.setItem('friday_v2', JSON.stringify({
+        coming: fridayData.coming, poll: fridayData.poll, taskDone: data.taskDone||{}
+      })); } catch(e) {}
+      renderComingSummary();
+      renderPoll();
+      renderFridayTasks();
+    }
+    // Live sync after initial load
+    db.ref('friday').on('value', function(snap2) {
+      if(!appReady) return;
+      var d2 = snap2.val();
+      if(!d2) return;
+      if(d2.coming) fridayData.coming = d2.coming;
+      if(d2.poll) {
+        fridayData.poll = Array.isArray(d2.poll) ? d2.poll : Object.values(d2.poll);
+      }
+      if(d2.taskDone) {
+        fridayData.tasks.forEach(function(t){
+          if(d2.taskDone[t.id] !== undefined) t.done = d2.taskDone[t.id];
+        });
+      }
+      try { localStorage.setItem('friday_v2', JSON.stringify({
+        coming: fridayData.coming, poll: fridayData.poll, taskDone: d2.taskDone||{}
+      })); } catch(e) {}
+      renderComingSummary();
+      renderPoll();
+      renderFridayTasks();
+    });
+  });
 
 } // end if(db)
 
@@ -1392,7 +1407,7 @@ db.ref('friday').on('value', function(snap) {
     canvas.width = 180; canvas.height = 180;
     var ctx = canvas.getContext('2d');
     // Background
-    ctx.fillStyle = '#fff5f5';
+    ctx.fillStyle = '#1a1a1a';
     ctx.beginPath();
     ctx.roundRect(0, 0, 180, 180, 36);
     ctx.fill();
