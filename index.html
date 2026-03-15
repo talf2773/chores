@@ -1003,25 +1003,22 @@ function loadFriday() {
       var parsed = JSON.parse(saved);
       fridayData.coming = parsed.coming || {};
       fridayData.poll   = parsed.poll   || [];
-      // Restore manual tasks (t3-t5), keep auto tasks fresh
-      if (parsed.tasks) {
-        parsed.tasks.forEach(function(pt){
-          if(!pt.auto) {
-            var task = fridayData.tasks.find(function(t){ return t.id===pt.id; });
-            if(task) { task.done = pt.done; task.assignees = pt.assignees; }
-          } else {
-            // keep done state but refresh assignees
-            var task2 = fridayData.tasks.find(function(t){ return t.id===pt.id; });
-            if(task2) task2.done = pt.done;
-          }
+      // Restore only done states (tasks are auto-generated)
+      if (parsed.taskDone) {
+        fridayData.tasks.forEach(function(task){
+          if(parsed.taskDone[task.id] !== undefined) task.done = parsed.taskDone[task.id];
         });
       }
     }
   } catch(e) {}
 }
 function saveFriday() {
-  try { localStorage.setItem('friday_v2', JSON.stringify(fridayData)); } catch(e) {}
-  try { if(db) db.ref('friday').set({coming: fridayData.coming, poll: fridayData.poll, tasks: fridayData.tasks}); } catch(e) {}
+  // Save done states of tasks separately, not the full task structure
+  var taskDoneStates = {};
+  fridayData.tasks.forEach(function(t){ taskDoneStates[t.id] = t.done; });
+  var saveData = {coming: fridayData.coming, poll: fridayData.poll, taskDone: taskDoneStates};
+  try { localStorage.setItem('friday_v2', JSON.stringify(saveData)); } catch(e) {}
+  try { if(db) db.ref('friday').set(saveData); } catch(e) {}
 }
 
 function toggleFridayCard(name) {
@@ -1292,7 +1289,7 @@ loadShop();
 updateShopSummary();
 renderShopGrid();
 initWA();
-initChoresPage();
+setTimeout(function(){ initChoresPage(); }, 0);
 
 // Always open on home page, scrolled to top
 (function(){
@@ -1336,75 +1333,53 @@ db.ref('shop/items').on('value', function(snap) {
 db.ref('tasks').on('value', function(snap) {
   var data = snap.val();
   if(!data) return;
+  var changed = false;
   Object.keys(data).forEach(function(key) {
-    try { 
-      if(data[key]) localStorage.setItem('taskdone_'+key, '1');
-      else localStorage.removeItem('taskdone_'+key);
+    try {
+      var current = localStorage.getItem('taskdone_'+key);
+      var incoming = data[key] ? '1' : null;
+      if(current !== incoming) {
+        if(incoming) localStorage.setItem('taskdone_'+key, '1');
+        else localStorage.removeItem('taskdone_'+key);
+        changed = true;
+      }
     } catch(e) {}
   });
-  // Always rebuild so data is ready
-  buildDayCards(todayData, 'today-cards', 'today-date-label');
-  buildDayCards(tomorrowData, 'tomorrow-cards', 'tomorrow-date-label');
+  // Only rebuild if something actually changed (sync from another device)
+  if(changed) {
+    buildDayCards(todayData, 'today-cards', 'today-date-label');
+    buildDayCards(tomorrowData, 'tomorrow-cards', 'tomorrow-date-label');
+  }
 });
 
 // Load friday from Firebase on startup (primary source)
-db.ref('friday').once('value', function(snap) {
-  var data = snap.val();
-  if(data) {
-    if(data.coming) fridayData.coming = data.coming;
-    if(data.poll && Array.isArray(data.poll)) fridayData.poll = data.poll;
-    else if(data.poll && typeof data.poll === 'object') {
-      // Firebase might store array as object with numeric keys
-      fridayData.poll = Object.values(data.poll);
-    }
-    if(data.tasks) {
-      data.tasks.forEach(function(pt){
-        var t = fridayData.tasks.find(function(x){ return x.id===pt.id; });
-        if(t) { t.done = pt.done; if(!t.auto) t.assignees = pt.assignees; }
-      });
-    }
-    try { localStorage.setItem('friday_v2', JSON.stringify(fridayData)); } catch(e) {}
-    // Always re-render friday data even if not on friday page
-    renderComingSummary();
-    renderPoll();
-    renderFridayTasks();
-  }
-});
+// 'on' listener handles initial load and live updates
 
 // Listen to friday live changes
 db.ref('friday').on('value', function(snap) {
   var data = snap.val();
   if(!data) return;
-  var changed = false;
-  if(data.coming && JSON.stringify(data.coming) !== JSON.stringify(fridayData.coming)) {
-    fridayData.coming = data.coming; changed = true;
+  // Update coming
+  if(data.coming) fridayData.coming = data.coming;
+  // Update poll - handle Firebase array-as-object
+  if(data.poll) {
+    var poll = Array.isArray(data.poll) ? data.poll : Object.values(data.poll);
+    fridayData.poll = poll;
+  } else {
+    fridayData.poll = [];
   }
-  var incomingPoll = data.poll;
-  if(incomingPoll && typeof incomingPoll === 'object' && !Array.isArray(incomingPoll)) {
-    incomingPoll = Object.values(incomingPoll);
-  }
-  if(incomingPoll && JSON.stringify(incomingPoll) !== JSON.stringify(fridayData.poll)) {
-    fridayData.poll = incomingPoll; changed = true;
-  }
-  // Only update tasks done/assignees, never replace the task list structure
-  if(data.tasks) {
-    data.tasks.forEach(function(pt){
-      var t = fridayData.tasks.find(function(x){ return x.id===pt.id; });
-      if(t) {
-        if(t.done !== pt.done) { t.done = pt.done; changed = true; }
-        if(!t.auto && JSON.stringify(t.assignees) !== JSON.stringify(pt.assignees)) {
-          t.assignees = pt.assignees; changed = true;
-        }
-      }
+  // Update task done states
+  if(data.taskDone) {
+    fridayData.tasks.forEach(function(task){
+      if(data.taskDone[task.id] !== undefined) task.done = data.taskDone[task.id];
     });
   }
-  if(changed) {
-    try { localStorage.setItem('friday_v2', JSON.stringify(fridayData)); } catch(e) {}
-    // Always render so data is ready when user navigates to friday page
-    renderComingSummary();
-    renderPoll();
-    renderFridayTasks();
-  }
+  try { localStorage.setItem('friday_v2', JSON.stringify({
+    coming: fridayData.coming, poll: fridayData.poll, taskDone: data.taskDone || {}
+  })); } catch(e) {}
+  renderComingSummary();
+  renderPoll();
+  renderFridayTasks();
 });
 
 } // end if(db)
