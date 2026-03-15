@@ -843,23 +843,53 @@ function autoCategory(name) {
   return 'אחר';
 }
 
-document.getElementById('shop-add-btn').addEventListener('click', function(){
-  var inp=document.getElementById('shop-input');
-  var qty=document.getElementById('qty-input');
-  var name=inp.value.trim();
+async function addShopItem() {
+  var inp = document.getElementById('shop-input');
+  var qty = document.getElementById('qty-input');
+  var name = inp.value.trim();
   if(!name) return;
-  // Auto-categorize: veggies→ירקות, meat→קצבייה, pharm→פארם, rest→אחר
-  var finalCat = autoCategory(name);
-  shopItems.push({id:Date.now(),name:name,qty:qty.value.trim(),cat:finalCat,done:false});
-  saveShop();updateShopSummary();renderShopGrid();
-  inp.value='';qty.value='';inp.focus();
+
+  // Try local categorization first
+  var localCat = autoCategory(name);
+
+  // If unknown (אחר), ask Claude API
+  if(localCat === 'אחר') {
+    inp.disabled = true;
+    document.getElementById('shop-add-btn').textContent = '...';
+    try {
+      var response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 50,
+          messages: [{
+            role: 'user',
+            content: 'סווג את המוצר הבא לאחת מהקטגוריות: סופר, ירקות ופירות, קצבייה, פארם, אחר. ענה רק בשם הקטגוריה בעברית ללא שום טקסט נוסף. המוצר: ' + name
+          }]
+        })
+      });
+      var data = await response.json();
+      var aiCat = data.content[0].text.trim();
+      var validCats = ['סופר','ירקות ופירות','קצבייה','פארם','אחר'];
+      if(validCats.includes(aiCat)) localCat = aiCat;
+    } catch(e) {}
+    inp.disabled = false;
+    document.getElementById('shop-add-btn').textContent = '+';
+  }
+
+  shopItems.push({id:Date.now(), name:name, qty:qty.value.trim(), cat:localCat, done:false});
+  saveShop(); updateShopSummary(); renderShopGrid();
+  inp.value=''; qty.value=''; inp.focus();
+}
+
+document.getElementById('shop-add-btn').addEventListener('click', function(){
+  addShopItem();
 });
 
 // Enter key on input
 document.getElementById('shop-input').addEventListener('keydown', function(e){
-  if(e.key==='Enter'){
-    document.getElementById('shop-add-btn').click();
-  }
+  if(e.key==='Enter'){ addShopItem(); }
 });
 
 // Clear done
@@ -1128,6 +1158,9 @@ function renderFridayTasks() {
 }
 
 loadFriday();
+renderPoll();
+renderFridayTasks();
+renderComingSummary();
 
 // Event delegation for friday tasks and poll
 document.addEventListener('click', function(e){
@@ -1294,7 +1327,7 @@ db.ref('shop/items').on('value', function(snap) {
     shopItems = data;
     try { localStorage.setItem('shop_items_v5', JSON.stringify(shopItems)); } catch(e) {}
     updateShopSummary();
-    if(document.getElementById('panel-shop').classList.contains('open')) renderShopGrid();
+    renderShopGrid(); // always re-render so data is ready
   }
 });
 
@@ -1308,10 +1341,9 @@ db.ref('tasks').on('value', function(snap) {
       else localStorage.removeItem('taskdone_'+key);
     } catch(e) {}
   });
-  if(document.getElementById('panel-chores').classList.contains('open')) {
-    buildDayCards(todayData, 'today-cards', 'today-date-label');
-    buildDayCards(tomorrowData, 'tomorrow-cards', 'tomorrow-date-label');
-  }
+  // Always rebuild so data is ready
+  buildDayCards(todayData, 'today-cards', 'today-date-label');
+  buildDayCards(tomorrowData, 'tomorrow-cards', 'tomorrow-date-label');
 });
 
 // Load friday from Firebase on startup (primary source)
@@ -1363,11 +1395,10 @@ db.ref('friday').on('value', function(snap) {
   }
   if(changed) {
     try { localStorage.setItem('friday_v2', JSON.stringify(fridayData)); } catch(e) {}
-    if(document.getElementById('page-friday').classList.contains('active')) {
-      renderComingSummary();
-      renderPoll();
-      renderFridayTasks();
-    }
+    // Always render so data is ready when user navigates to friday page
+    renderComingSummary();
+    renderPoll();
+    renderFridayTasks();
   }
 });
 
