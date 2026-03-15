@@ -1074,6 +1074,7 @@ function addPollItem() {
   inp.value = '';
   inp.focus();
   renderPoll();
+  renderFridayTasks(); // keep tasks visible after adding poll item
 }
 document.addEventListener('DOMContentLoaded', function(){
   var pi = document.getElementById('poll-input');
@@ -1385,12 +1386,16 @@ db.ref('friday').on('value', function(snap) {
   if(incomingPoll && JSON.stringify(incomingPoll) !== JSON.stringify(fridayData.poll)) {
     fridayData.poll = incomingPoll; changed = true;
   }
-  if(data.tasks && JSON.stringify(data.tasks) !== JSON.stringify(fridayData.tasks)) {
-    // preserve auto assignments
+  // Only update tasks done/assignees, never replace the task list structure
+  if(data.tasks) {
     data.tasks.forEach(function(pt){
       var t = fridayData.tasks.find(function(x){ return x.id===pt.id; });
-      if(t && !t.auto) { t.done=pt.done; t.assignees=pt.assignees; changed=true; }
-      else if(t && t.auto) { t.done=pt.done; changed=true; }
+      if(t) {
+        if(t.done !== pt.done) { t.done = pt.done; changed = true; }
+        if(!t.auto && JSON.stringify(t.assignees) !== JSON.stringify(pt.assignees)) {
+          t.assignees = pt.assignees; changed = true;
+        }
+      }
     });
   }
   if(changed) {
