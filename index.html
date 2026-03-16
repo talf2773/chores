@@ -956,6 +956,17 @@ function getFridayRotation() {
 }
 
 // Update friday subtitle with next Friday date
+
+fridayData = {
+  coming: {},
+  poll: [],
+  weekNum: -1, // will be set on load
+  tasks: [
+    {id:'t1', label:'לסדר שולחן',    done:false, assignees:{}, auto:true},
+    {id:'t2', label:'לפנות מהשולחן', done:false, assignees:{}, auto:true}
+  ]
+};
+
 (function(){
   var sub = document.getElementById('friday-subtitle');
   if(sub) {
@@ -991,15 +1002,6 @@ function getFridayRotation() {
   setInterval(checkFridayReset, 60000);
 })();
 
-fridayData = {
-  coming: {},
-  poll: [],
-  weekNum: -1, // will be set on load
-  tasks: [
-    {id:'t1', label:'לסדר שולחן',    done:false, assignees:{}, auto:true},
-    {id:'t2', label:'לפנות מהשולחן', done:false, assignees:{}, auto:true}
-  ]
-};
 
 function applyFridayRotation() {
   var rot = getFridayRotation();
@@ -1103,7 +1105,7 @@ document.addEventListener('DOMContentLoaded', function(){
 function toggleVote(pollId, slug) {
   var item = fridayData.poll.find(function(p){ return p.id===pollId; });
   if(!item) return;
-  item.votes[slug] = !item.votes[slug];
+  if(!item.votes) item.votes={}; item.votes[slug] = !item.votes[slug];
   saveFriday();
   renderPoll();
 }
@@ -1123,10 +1125,10 @@ function renderPoll() {
   var slugs = ['tamar','yair','shira','daniela'];
   list.innerHTML = fridayData.poll.map(function(item){
     var chips = slugs.map(function(s){
-      var voted = item.votes[s] ? ' voted' : '';
+      var voted = item.votes && item.votes[s] ? ' voted' : '';
       return '<span class="vote-chip'+voted+'" style="background:'+FRIDAY_COLORS[s]+'" data-pollid="'+item.id+'" data-slug="'+s+'">'+FRIDAY_NAMES[s]+'</span>';
     }).join('');
-    var total = slugs.filter(function(s){ return item.votes[s]; }).length;
+    var total = slugs.filter(function(s){ return item.votes && item.votes[s]; }).length;
     var totalTxt = total > 0 ? '<span style="font-size:0.72rem;color:#b2bec3;margin-right:4px;">'+total+' ✓</span>' : '';
     return '<div class="poll-item">'+
       '<span class="poll-item-text">'+item.text+'</span>'+
