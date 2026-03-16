@@ -167,7 +167,9 @@
   .task-pill { font-size: 0.74rem; font-weight: 600; padding: 3px 10px; border-radius: 50px; color: white; }
   .tp-lucy  { background: #74b9ff; }
   .tp-dish  { background: #fd79a8; }
-  .tp-trash { background: #55efc4; color: #2d3436; }
+  .tp-trash  { background: #55efc4; color: #2d3436; }
+  .tp-toilet  { background: #a29bfe; color: white; }
+  .tp-binwash { background: #636e72; color: white; }
 
   /* ── Shopping ── */
   .shop-controls { display: flex; gap: 9px; align-items: center; margin-bottom: 13px; flex-wrap: wrap; }
@@ -450,6 +452,7 @@
 // ═══ DATA ═══
 var ALL     = ['תמר','יאיר','שירה','דניאלה'];
 var TRASH_K = ['יאיר','שירה'];
+var TOILET_K = ['תמר','שירה','דניאלה']; // 3 kids rotate for toilet (not יאיר)
 var CLASS   = {'תמר':'c-tamar','יאיר':'c-yair','שירה':'c-shira','דניאלה':'c-daniela'};
 var COLORS  = {'תמר':'#ff6b6b','יאיר':'#4ecdc4','שירה':'#f7a440','דניאלה':'#a55eea'};
 var SLUG    = {'תמר':'tamar','יאיר':'yair','שירה':'shira','דניאלה':'daniela'};
@@ -472,11 +475,17 @@ function pickLowest(cands,load,excl){
 function buildSchedule(){
   var days=getDays(),load={'תמר':0,'יאיר':0,'שירה':0,'דניאלה':0},sch=[];
   days.forEach(function(date,i){
-    var trash=null,used=[];
+    var trash=null,toilet1=null,toilet2=null,binWash=false,used=[];
     if(i%2===0){trash=pickLowest(TRASH_K,load,[]);load[trash]++;used.push(trash);}
+    // Weekly toilet cleaning - 2 kids (not יאיר)
+    if(i%7===0){
+      toilet1=pickLowest(TOILET_K,load,used);load[toilet1]++;used.push(toilet1);
+      toilet2=pickLowest(TOILET_K,load,used);load[toilet2]++;used.push(toilet2);
+      binWash=true; // יאיר washes bin same day
+    }
     var lucy=pickLowest(ALL,load,used);load[lucy]++;used.push(lucy);
     var dish=pickLowest(ALL,load,used);load[dish]++;
-    sch.push({date:date,lucy:lucy,dish:dish,trash:trash});
+    sch.push({date:date,lucy:lucy,dish:dish,trash:trash,toilet1:toilet1,toilet2:toilet2,binWash:binWash});
   });
   return sch;
 }
@@ -517,6 +526,9 @@ function buildDayCards(rowData, containerId, labelId) {
     {id:'dish',  icon:'🍽️', label:'לפנות מדיח',     child:rowData.dish}
   ];
   if(rowData.trash) tasks.push({id:'trash', icon:'🗑️', label:'להוציא זבל', child:rowData.trash});
+  if(rowData.toilet1) tasks.push({id:'toilet1', icon:'🚽', label:'לנקות שירותים', child:rowData.toilet1});
+  if(rowData.toilet2) tasks.push({id:'toilet2', icon:'🚽', label:'לנקות שירותים', child:rowData.toilet2});
+  if(rowData.binWash) tasks.push({id:'binwash', icon:'🪣', label:'לשטוף פח זבל', child:'יאיר'});
   tasks.forEach(function(t){
     var done = isTaskDone(rowData.date, t.id);
     var div=document.createElement('div');
@@ -560,7 +572,11 @@ var todayData=null, tomorrowData=null;
   if(!todayData){todayData=schedule[0];tomorrowData=schedule[1]||null;}
 })();
 
+
+
 function initChoresPage() {
+  var c1 = document.getElementById('today-cards');
+  var c2 = document.getElementById('tomorrow-cards');
   buildDayCards(todayData,    'today-cards',    'today-date-label');
   buildDayCards(tomorrowData, 'tomorrow-cards', 'tomorrow-date-label');
   var sub = document.getElementById('chores-card-sub');
@@ -591,9 +607,11 @@ document.getElementById('cal-child-row').addEventListener('click', function(e){
   var rows=[];
   schedule.forEach(function(row){
     var tasks=[];
-    if(row.lucy===name)  tasks.push({label:'לוסי 🖤🐕',cls:'tp-lucy'});
+    if(row.lucy===name)  tasks.push({label:'לוסי 🐕',cls:'tp-lucy'});
     if(row.dish===name)  tasks.push({label:'מדיח 🍽️',cls:'tp-dish'});
     if(row.trash===name) tasks.push({label:'זבל 🗑️',cls:'tp-trash'});
+    if(row.toilet1===name||row.toilet2===name) tasks.push({label:'שירותים 🚽',cls:'tp-toilet'});
+    if(row.binWash && name==='יאיר') tasks.push({label:'שטיפת פח 🪣',cls:'tp-binwash'});
     if(tasks.length>0) rows.push({date:row.date,tasks:tasks});
   });
   var color=COLORS[name];
@@ -822,10 +840,7 @@ function autoCategory(name) {
     'פרוביוטיקה','תחבושת','פלסטר','גאזה','אלכוהול','חיטוי','סדין'
   ];
 
-  for(var i=0;i<veggies.length;i++) if(n.includes(veggies[i])) return 'ירקות ופירות';
-  for(var i=0;i<meat.length;i++) if(n.includes(meat[i])) return 'קצבייה';
-  for(var i=0;i<pharm.length;i++) if(n.includes(pharm[i])) return 'פארם';
-  // Common supermarket food items → סופר
+  // Check supermarket FIRST to avoid false matches (e.g. נוטלה contains טלה)
   var supermarket = [
     'חלב','גבינה','יוגורט','שמנת','חמאה','ביצ','ביצים','מוצרלה','קוטג','לבן',
     'לחם','פיתה','בגט','חלה','לחמניה','קרקר','מצה','טוסט',
@@ -840,6 +855,9 @@ function autoCategory(name) {
     'גלידה','שרבט','קרטיב','אייסבר','מקלון','נוטלה','חמאת בוטנים','לוטוס','שוקו','ממרח שוקולד'
   ];
   for(var i=0;i<supermarket.length;i++) if(n.includes(supermarket[i])) return 'סופר';
+  for(var i=0;i<veggies.length;i++) if(n.includes(veggies[i])) return 'ירקות ופירות';
+  for(var i=0;i<meat.length;i++) if(n.includes(meat[i])) return 'קצבייה';
+  for(var i=0;i<pharm.length;i++) if(n.includes(pharm[i])) return 'פארם';
   return 'אחר';
 }
 
@@ -947,25 +965,25 @@ function getFridayRotation() {
   function checkFridayReset() {
     var now = new Date();
     if(now.getDay() === 5 && now.getHours() >= 23) {
-      // It's Friday 23:00+ — reset done states for next week
-      var saved = localStorage.getItem('friday_v2');
-      if(saved) {
-        try {
-          var data = JSON.parse(saved);
-          var rot = getFridayRotation();
-          // Check if already reset this week
-          if(data.weekNum !== rot.weekNum) {
-            // New week — clear done states
-            if(data.tasks) data.tasks.forEach(function(t){ t.done = false; });
-            data.weekNum = rot.weekNum;
-            localStorage.setItem('friday_v2', JSON.stringify(data));
-          }
-        } catch(e) {}
+      var rot = getFridayRotation();
+      var lastReset = localStorage.getItem('friday_last_reset');
+      if(lastReset !== String(rot.weekNum)) {
+        // Reset everything for next week
+        var emptyData = {coming: {}, poll: [], taskDone: {}};
+        try { localStorage.setItem('friday_v2', JSON.stringify(emptyData)); } catch(e) {}
+        try { localStorage.setItem('friday_last_reset', String(rot.weekNum)); } catch(e) {}
+        try { if(db) db.ref('friday').set(emptyData); } catch(e) {}
+        // Reset in memory
+        fridayData.coming = {};
+        fridayData.poll = [];
+        fridayData.tasks.forEach(function(t){ t.done = false; });
+        renderComingSummary();
+        renderPoll();
+        renderFridayTasks();
       }
     }
   }
   checkFridayReset();
-  // Check every minute
   setInterval(checkFridayReset, 60000);
 })();
 
@@ -1288,52 +1306,70 @@ function switchPage(name, btn) {
 loadShop();
 updateShopSummary();
 renderShopGrid();
+loadFriday();
+renderPoll();
+renderFridayTasks();
+renderComingSummary();
 initWA();
-setTimeout(function(){ initChoresPage(); }, 0);
 
-// Always open on home page, scrolled to top
-(function(){
-  // Switch to home
-  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
-  document.querySelectorAll('.nav-btn').forEach(function(b){ b.classList.remove('active'); });
-  document.getElementById('page-home').classList.add('active');
-  document.getElementById('nav-home').classList.add('active');
-  // Scroll to top
-  window.scrollTo(0, 0);
-})();
+// Always open on home page, scrolled to top, build task cards
+document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+document.querySelectorAll('.nav-btn').forEach(function(b){ b.classList.remove('active'); });
+document.getElementById('page-home').classList.add('active');
+document.getElementById('nav-home').classList.add('active');
+document.getElementById('panel-chores').classList.add('open');
+document.getElementById('chores-card').classList.add('open');
+window.scrollTo(0, 0);
+initChoresPage();
 
 // ═══ FIREBASE SYNC ═══
+var fbInitialized = false;
+
+function parsePoll(raw) {
+  if(!raw) return [];
+  if(Array.isArray(raw)) return raw;
+  if(typeof raw === 'object') return Object.values(raw);
+  return [];
+}
+
+function applyFridayData(data) {
+  if(!data) return;
+  if(data.coming) fridayData.coming = data.coming;
+  fridayData.poll = parsePoll(data.poll);
+  if(data.taskDone) {
+    fridayData.tasks.forEach(function(t){
+      if(data.taskDone[t.id] !== undefined) t.done = data.taskDone[t.id];
+    });
+  }
+  try { localStorage.setItem('friday_v2', JSON.stringify({
+    coming: fridayData.coming, poll: fridayData.poll, taskDone: data.taskDone||{}
+  })); } catch(e) {}
+  renderComingSummary();
+  renderPoll();
+  renderFridayTasks();
+}
+
 if(db) {
-  var appReady = false;
-  // Mark app as ready after initial render
-  setTimeout(function(){ appReady = true; }, 500);
 
   // ── SHOP ──
-  db.ref('shop/items').once('value', function(snap) {
+  db.ref('shop/items').on('value', function(snap) {
     var data = snap.val();
-    if(data && Array.isArray(data) && data.length > 0) {
-      shopItems = data;
-      try { localStorage.setItem('shop_items_v5', JSON.stringify(shopItems)); } catch(e) {}
-      updateShopSummary();
-      renderShopGrid();
-    } else if(!data) {
-      db.ref('shop/items').set(shopItems);
+    if(!data || !Array.isArray(data)) {
+      if(!data) db.ref('shop/items').set(shopItems); // push defaults if empty
+      return;
     }
-    // Live sync after initial load
-    db.ref('shop/items').on('value', function(snap2) {
-      var d2 = snap2.val();
-      if(!d2 || !Array.isArray(d2)) return;
-      if(JSON.stringify(d2) === JSON.stringify(shopItems)) return;
-      shopItems = d2;
-      try { localStorage.setItem('shop_items_v5', JSON.stringify(shopItems)); } catch(e) {}
-      updateShopSummary();
-      renderShopGrid();
-    });
+    if(JSON.stringify(data) === JSON.stringify(shopItems)) return;
+    shopItems = data;
+    try { localStorage.setItem('shop_items_v5', JSON.stringify(shopItems)); } catch(e) {}
+    updateShopSummary();
+    renderShopGrid();
   });
 
-  // ── TASK DONE SYNC ──
+  // ── TASK DONE SYNC (only sync between devices, don't rebuild on own changes) ──
+  var taskSnapCount = 0;
   db.ref('tasks').on('value', function(snap) {
-    if(!appReady) return; // skip initial fire
+    taskSnapCount++;
+    if(taskSnapCount === 1) return; // skip initial fire - we already built from localStorage
     var data = snap.val();
     if(!data) return;
     var changed = false;
@@ -1355,46 +1391,25 @@ if(db) {
   });
 
   // ── FRIDAY ──
-  db.ref('friday').once('value', function(snap) {
+  var fridaySnapCount = 0;
+  db.ref('friday').on('value', function(snap) {
+    fridaySnapCount++;
     var data = snap.val();
-    if(data) {
-      if(data.coming) fridayData.coming = data.coming;
-      if(data.poll) {
-        fridayData.poll = Array.isArray(data.poll) ? data.poll : Object.values(data.poll);
-      }
-      if(data.taskDone) {
-        fridayData.tasks.forEach(function(t){
-          if(data.taskDone[t.id] !== undefined) t.done = data.taskDone[t.id];
-        });
-      }
-      try { localStorage.setItem('friday_v2', JSON.stringify({
-        coming: fridayData.coming, poll: fridayData.poll, taskDone: data.taskDone||{}
-      })); } catch(e) {}
-      renderComingSummary();
-      renderPoll();
-      renderFridayTasks();
+    if(!data) return;
+    if(data.coming) fridayData.coming = data.coming;
+    fridayData.poll = parsePoll(data.poll);
+    if(data.taskDone) {
+      fridayData.tasks.forEach(function(t){
+        if(data.taskDone[t.id] !== undefined) t.done = data.taskDone[t.id];
+      });
     }
-    // Live sync after initial load
-    db.ref('friday').on('value', function(snap2) {
-      if(!appReady) return;
-      var d2 = snap2.val();
-      if(!d2) return;
-      if(d2.coming) fridayData.coming = d2.coming;
-      if(d2.poll) {
-        fridayData.poll = Array.isArray(d2.poll) ? d2.poll : Object.values(d2.poll);
-      }
-      if(d2.taskDone) {
-        fridayData.tasks.forEach(function(t){
-          if(d2.taskDone[t.id] !== undefined) t.done = d2.taskDone[t.id];
-        });
-      }
-      try { localStorage.setItem('friday_v2', JSON.stringify({
-        coming: fridayData.coming, poll: fridayData.poll, taskDone: d2.taskDone||{}
-      })); } catch(e) {}
-      renderComingSummary();
-      renderPoll();
-      renderFridayTasks();
-    });
+    try { localStorage.setItem('friday_v2', JSON.stringify({
+      coming: fridayData.coming, poll: fridayData.poll, taskDone: data.taskDone||{}
+    })); } catch(e) {}
+    // Always render friday (it's a separate page so no conflict)
+    renderComingSummary();
+    renderPoll();
+    renderFridayTasks();
   });
 
 } // end if(db)
