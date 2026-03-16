@@ -14,17 +14,17 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script>
-  var db = null;
-  try {
-    const firebaseConfig = { databaseURL: 'https://chores-family-d2fe0-default-rtdb.europe-west1.firebasedatabase.app' };
-    firebase.initializeApp(firebaseConfig);
-    db = firebase.database();
-  } catch(e) {
-    // Firebase failed - create dummy db so app still works offline
-    db = {
-      ref: function() { return { set:function(){}, on:function(){}, once:function(ev,cb){ cb({val:function(){return null;}}); } }; }
-    };
-  }
+  var db = {
+    ref: function() { return { set:function(){}, on:function(){}, once:function(ev,cb){ cb({val:function(){return null;}}); } }; }
+  };
+  window.addEventListener('load', function() {
+    try {
+      if(typeof firebase !== 'undefined') {
+        firebase.initializeApp({ databaseURL: 'https://chores-family-d2fe0-default-rtdb.europe-west1.firebasedatabase.app' });
+        db = firebase.database();
+      }
+    } catch(e) {}
+  });
 </script>
 <style>
   :root { --bg: #fdf6ec; --text: #2d3436; --muted: #b2bec3; }
@@ -509,7 +509,7 @@ function setTaskDone(date, taskId, done) {
   } catch(e) {}
   try {
     var key = 'tasks/' + date.getFullYear()+'-'+(date.getMonth()+1)+'-'+date.getDate()+'_'+taskId;
-    db.ref(key).set(done ? true : null);
+    if(db) db.ref(key).set(done ? true : null);
   } catch(e) {}
 }
 
@@ -1320,7 +1320,7 @@ document.getElementById('nav-home').classList.add('active');
 document.getElementById('panel-chores').classList.add('open');
 document.getElementById('chores-card').classList.add('open');
 window.scrollTo(0, 0);
-initChoresPage();
+setTimeout(function(){ initChoresPage(); }, 50);
 
 // ═══ FIREBASE SYNC ═══
 var fbInitialized = false;
@@ -1355,7 +1355,7 @@ if(db) {
   db.ref('shop/items').on('value', function(snap) {
     var data = snap.val();
     if(!data || !Array.isArray(data)) {
-      if(!data) db.ref('shop/items').set(shopItems); // push defaults if empty
+      if(!data && db) db.ref('shop/items').set(shopItems); // push defaults if empty
       return;
     }
     if(JSON.stringify(data) === JSON.stringify(shopItems)) return;
