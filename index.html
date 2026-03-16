@@ -313,6 +313,15 @@
   <div class="task-grid" id="today-cards"></div>
 
   <div id="whatsapp-section" style="margin-top:14px;">
+    <button id="wa-toggle-btn" onclick="toggleWASettings()" style="font-family:'Heebo',sans-serif;font-size:0.82rem;font-weight:600;padding:7px 16px;border:2px solid #25d366;border-radius:50px;background:white;color:#25d366;cursor:pointer;display:flex;align-items:center;gap:6px;margin-bottom:10px;">
+      <span>📱</span><span>שלח תזכורות בוואטסאפ</span>
+    </button>
+    <div id="wa-settings" style="display:none;background:#f9fffe;border:2px solid #e0f8ee;border-radius:14px;padding:14px;margin-bottom:10px;">
+      <p style="font-size:0.78rem;color:#636e72;margin-bottom:10px;">הזיני מספרי טלפון (עם קידומת מדינה, למשל 972501234567):</p>
+      <div id="wa-phones" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;"></div>
+      <button onclick="saveWAPhones()" style="font-family:'Heebo',sans-serif;font-size:0.8rem;font-weight:700;padding:7px 18px;border:none;border-radius:50px;background:#25d366;color:white;cursor:pointer;">שמור מספרים</button>
+      <span id="wa-saved-msg" style="font-size:0.78rem;color:#25d366;margin-right:8px;display:none;">✓ נשמר</span>
+    </div>
     <div id="wa-send-btns" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
   </div>
 
@@ -1215,7 +1224,10 @@ function saveWAPhones() {
   buildWASendBtns();
 }
 
-
+function toggleWASettings() {
+  var s = document.getElementById('wa-settings');
+  if(s) s.style.display = s.style.display==='none' ? 'block' : 'none';
+}
 
 function buildWAPhoneInputs() {
   var phones = loadWAPhones();
