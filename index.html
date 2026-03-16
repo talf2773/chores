@@ -203,13 +203,20 @@ h1 { font-family: 'Rubik', sans-serif; font-weight: 800; text-align: center; fon
 .poll-input { flex: 1; font-family: 'Heebo', sans-serif; font-size: .88rem; padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 10px; outline: none; }
 .poll-input:focus { border-color: var(--teal); }
 .poll-add { width: 38px; height: 38px; border: none; border-radius: 10px; background: var(--teal); color: white; font-size: 1.2rem; cursor: pointer; }
-.poll-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #fafafa; border-radius: 10px; border: 1px solid #f0f0f0; margin-bottom: 6px; }
+.poll-item { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; background: #fafafa; border-radius: 10px; border: 1px solid #f0f0f0; margin-bottom: 6px; }
+.poll-item.editing { background: #f0faff; border-color: #4ecdc4; }
+.poll-item-main { display: flex; align-items: center; gap: 8px; }
 .poll-text { flex: 1; font-size: .85rem; font-weight: 600; }
+.poll-actions { display: flex; gap: 3px; }
 .poll-votes { display: flex; gap: 4px; flex-wrap: wrap; }
+.poll-edit-input { font-family: 'Heebo', sans-serif; font-size: .85rem; font-weight: 600; border: none; background: transparent; outline: none; flex: 1; }
+.poll-save-btn { font-family: 'Heebo', sans-serif; font-size: .68rem; font-weight: 700; padding: 2px 8px; border: none; border-radius: 50px; background: #4ecdc4; color: white; cursor: pointer; }
 .vote-chip { font-size: .68rem; font-weight: 700; padding: 2px 8px; border-radius: 50px; cursor: pointer; opacity: .45; color: white; transition: opacity .18s; }
 .vote-chip.voted { opacity: 1; }
-.poll-del-btn { border: none; background: none; color: #ccc; font-size: .78rem; cursor: pointer; }
-.poll-del-btn:hover { color: var(--red); }
+.poll-del-btn  { border: none; background: none; color: #ccc; font-size: .78rem; cursor: pointer; }
+.poll-del-btn:hover  { color: var(--red); }
+.poll-edit-btn { border: none; background: none; color: #b2bec3; font-size: .82rem; cursor: pointer; }
+.poll-edit-btn:hover { color: #4ecdc4; }
 .ftask { display: flex; align-items: center; gap: 9px; padding: 9px 11px; background: #fafafa; border-radius: 11px; border: 1px solid #f0f0f0; margin-bottom: 6px; transition: all .18s; }
 .ftask.done { opacity: .45; }
 .ftask.done .ftlabel { text-decoration: line-through; }
@@ -686,7 +693,7 @@ function renderPoll(){
       return '<span class="vote-chip'+(voted?' voted':'')+'" style="background:'+FRI_COLORS[s]+'" data-pid="'+item.id+'" data-slug="'+s+'">'+FRI_NAMES[s]+'</span>';
     }).join('');
     var total=slugs.filter(function(s){return item.votes&&item.votes[s];}).length;
-    return '<div class="poll-item"><span class="poll-text">'+item.text+'</span><div class="poll-votes">'+chips+(total?'<span style="font-size:.7rem;color:#b2bec3;margin-right:4px;">'+total+'✓</span>':'')+'</div><button class="poll-del-btn" data-pid="'+item.id+'">✕</button></div>';
+    return '<div class="poll-item" data-pid="'+item.id+'"><div class="poll-item-main"><span class="poll-text">'+item.text+'</span><div class="poll-actions"><button class="poll-edit-btn" data-pid="'+item.id+'" title="ערוך">✎</button><button class="poll-del-btn" data-pid="'+item.id+'" title="מחק">✕</button></div></div><div class="poll-votes">'+chips+(total?'<span style="font-size:.7rem;color:#b2bec3;margin-right:4px;">'+total+'✓</span>':'')+'</div></div>';
   }).join('');
 }
 function addPollItem(){
@@ -696,7 +703,12 @@ function addPollItem(){
 }
 document.getElementById('poll-inp').addEventListener('keydown',function(e){if(e.key==='Enter') addPollItem();});
 document.getElementById('poll-list').addEventListener('click',function(e){
-  var chip=e.target.closest('.vote-chip'), del=e.target.closest('.poll-del-btn');
+  var chip=e.target.closest('.vote-chip');
+  var del=e.target.closest('.poll-del-btn');
+  var edit=e.target.closest('.poll-edit-btn');
+  var save=e.target.closest('.poll-save-btn');
+  var cancel=e.target.closest('.poll-cancel-btn');
+
   if(chip){
     var pid=+chip.dataset.pid, s=chip.dataset.slug;
     var item=FRI.poll.find(function(x){return x.id===pid;});
@@ -705,6 +717,29 @@ document.getElementById('poll-list').addEventListener('click',function(e){
   if(del){
     var pid=+del.dataset.pid; FRI.poll=FRI.poll.filter(function(x){return x.id!==pid;}); saveFriday(); renderPoll();
   }
+  if(edit){
+    var pid=+edit.dataset.pid;
+    var item=FRI.poll.find(function(x){return x.id===pid;});
+    if(!item) return;
+    var row=edit.closest('.poll-item'); if(row.classList.contains('editing')) return;
+    row.classList.add('editing');
+    var main=row.querySelector('.poll-item-main');
+    main.innerHTML='<input class="poll-edit-input" id="pe_'+pid+'" value="'+item.text+'"/>'
+      +'<button class="poll-save-btn" data-pid="'+pid+'">✓</button>'
+      +'<button class="poll-cancel-btn" data-pid="'+pid+'" style="font-family:Heebo;font-size:.68rem;padding:2px 7px;border:none;border-radius:50px;background:#eee;cursor:pointer;">✕</button>';
+    document.getElementById('pe_'+pid).focus();
+    document.getElementById('pe_'+pid).addEventListener('keydown',function(ev){
+      if(ev.key==='Enter') row.querySelector('.poll-save-btn').click();
+      if(ev.key==='Escape') row.querySelector('.poll-cancel-btn').click();
+    });
+  }
+  if(save){
+    var pid=+save.dataset.pid;
+    var val=document.getElementById('pe_'+pid).value.trim();
+    if(val){ var item=FRI.poll.find(function(x){return x.id===pid;}); if(item) item.text=val; saveFriday(); }
+    renderPoll();
+  }
+  if(cancel){ renderPoll(); }
 });
 
 function renderFriTasks(){
