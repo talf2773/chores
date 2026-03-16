@@ -229,164 +229,7 @@ h1 { font-family: 'Rubik', sans-serif; font-weight: 800; text-align: center; fon
 
 /* ── WA button ── */
 .wa-wrap { margin-top: 10px; }
-.wa-toggle { font-family: 'Heebo', sans-serif; font-size: .8rem; font-weight: 600; padding: 6px 14px; border: 2px solid #25d366; border-radius: 50px; background: white; color: #25d366; cursor: pointer; }
-.wa-settings { display: none; background: #f9fffe; border: 2px solid #e0f8ee; border-radius: 12px; padding: 12px; margin-top: 8px; }
-.wa-phone-row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
-.wa-name { font-weight: 700; font-size: .82rem; min-width: 50px; }
-.wa-input { font-family: 'Heebo', sans-serif; font-size: .8rem; padding: 5px 9px; border: 2px solid #e0e0e0; border-radius: 9px; outline: none; flex: 1; direction: ltr; }
-.wa-save { font-family: 'Heebo', sans-serif; font-size: .78rem; font-weight: 700; padding: 6px 15px; border: none; border-radius: 50px; background: #25d366; color: white; cursor: pointer; margin-top: 4px; }
-.wa-btns { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 8px; }
-.wa-child-btn { font-family: 'Heebo', sans-serif; font-size: .8rem; font-weight: 700; padding: 6px 14px; border: 2px solid; border-radius: 50px; background: white; cursor: pointer; display: flex; align-items: center; gap: 5px; text-decoration: none; }
 
-/* colors */
-.ct { color: var(--red);    border-color: var(--red);    }
-.cy { color: var(--teal);   border-color: var(--teal);   }
-.cs { color: var(--orange); border-color: var(--orange); }
-.cd { color: var(--purple); border-color: var(--purple); }
-</style>
-</head>
-<body>
-
-<!-- ═══ HOME PAGE ═══ -->
-<div class="page active" id="page-home">
-  <h1>🏠 מטלות הבית</h1>
-  <p class="subtitle" id="subtitle-home"></p>
-
-  <div class="card">
-    <!-- Today -->
-    <div class="sec-title" id="lbl-today">📅 היום</div>
-    <div class="task-grid" id="today-cards"></div>
-
-    <div class="divider"></div>
-
-    <!-- Tomorrow -->
-    <div class="sec-title" id="lbl-tomorrow">📆 מחר</div>
-    <div class="task-grid" id="tomorrow-cards"></div>
-
-    <div class="divider"></div>
-
-    <!-- Full calendar -->
-    <div class="sec-title">🗓️ לוח שנה מלא — לפי ילד</div>
-    <div class="child-row" id="cal-row">
-      <button class="cbtn cbtn-tamar"   data-name="תמר"    data-slug="tamar">תמר</button>
-      <button class="cbtn cbtn-yair"    data-name="יאיר"   data-slug="yair">יאיר</button>
-      <button class="cbtn cbtn-shira"   data-name="שירה"   data-slug="shira">שירה</button>
-      <button class="cbtn cbtn-daniela" data-name="דניאלה" data-slug="daniela">דניאלה</button>
-    </div>
-    <div id="cal-detail"></div>
-  </div>
-
-  <!-- WA reminders -->
-  <div class="card" style="margin-top:12px;">
-    <div class="wa-wrap">
-      <button class="wa-toggle" onclick="toggleWA()">📱 שלח תזכורות בוואטסאפ</button>
-      <div class="wa-settings" id="wa-settings">
-        <div id="wa-phones-list"></div>
-        <button class="wa-save" onclick="saveWAPhones()">שמור מספרים ✓</button>
-      </div>
-      <div class="wa-btns" id="wa-btns"></div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ SHOP PAGE ═══ -->
-<div class="page" id="page-shop">
-  <h1>🛒 קניות</h1>
-  <p class="subtitle">רשימת הקניות שלנו</p>
-  <div class="card">
-    <div class="shop-controls">
-      <input type="text" id="shop-inp" class="shop-input" placeholder="הוסיפי פריט..." />
-      <input type="text" id="qty-inp"  class="qty-input"  placeholder="כמות" />
-      <button class="add-btn" id="shop-add-btn">+</button>
-      <button class="clear-btn" id="shop-clear-btn">נקה ✓</button>
-    </div>
-    <div class="shop-grid" id="shop-grid"></div>
-  </div>
-</div>
-
-<!-- ═══ FRIDAY PAGE ═══ -->
-<div class="page" id="page-friday">
-  <h1>🕯️ ארוחת שישי</h1>
-  <p class="subtitle" id="subtitle-friday"></p>
-
-  <!-- Who's coming -->
-  <div class="fri-card">
-    <div class="fri-hdr open" onclick="toggleFri('coming')">
-      <span class="fri-hdr-icon">👨‍👩‍👧‍👦</span>
-      <span class="fri-hdr-title">מי מגיע?</span>
-      <span class="fri-arrow" id="arr-coming">▼</span>
-    </div>
-    <div class="fri-body open" id="body-coming">
-      <p class="fri-hint">לחצו על שם כדי לסמן מגיע ✓</p>
-      <div class="coming-grid">
-        <button class="cbtn cbtn-tamar"   data-slug="tamar"   onclick="toggleComing(this)">תמר</button>
-        <button class="cbtn cbtn-yair"    data-slug="yair"    onclick="toggleComing(this)">יאיר</button>
-        <button class="cbtn cbtn-shira"   data-slug="shira"   onclick="toggleComing(this)">שירה</button>
-        <button class="cbtn cbtn-daniela" data-slug="daniela" onclick="toggleComing(this)">דניאלה</button>
-      </div>
-      <div id="coming-summary" style="font-size:.8rem;color:#636e72;margin-top:8px;font-weight:600;"></div>
-    </div>
-  </div>
-
-  <!-- Poll -->
-  <div class="fri-card">
-    <div class="fri-hdr open" onclick="toggleFri('poll')">
-      <span class="fri-hdr-icon">🍽️</span>
-      <span class="fri-hdr-title">מה רוצים לאכול?</span>
-      <span class="fri-arrow" id="arr-poll">▼</span>
-    </div>
-    <div class="fri-body open" id="body-poll">
-      <div class="poll-input-row">
-        <input type="text" class="poll-input" id="poll-inp" placeholder="הוסיפי מנה..." />
-        <button class="poll-add" onclick="addPollItem()">+</button>
-      </div>
-      <div id="poll-list"></div>
-    </div>
-  </div>
-
-  <!-- Tasks -->
-  <div class="fri-card">
-    <div class="fri-hdr open" onclick="toggleFri('tasks')">
-      <span class="fri-hdr-icon">✅</span>
-      <span class="fri-hdr-title">מטלות לארוחה</span>
-      <span class="fri-arrow" id="arr-tasks">▼</span>
-    </div>
-    <div class="fri-body open" id="body-tasks">
-      <div id="fri-tasks-list"></div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ NAV ═══ -->
-<nav class="bottom-nav">
-  <button class="nav-btn active" id="nav-home"   onclick="goPage('home',   this)"><span class="ni">🏠</span><span>מטלות</span></button>
-  <button class="nav-btn"        id="nav-shop"   onclick="goPage('shop',   this)"><span class="ni">🛒</span><span>קניות</span></button>
-  <button class="nav-btn"        id="nav-friday" onclick="goPage('friday', this)"><span class="ni">🕯️</span><span>שישי</span></button>
-</nav>
-
-<script>
-// ══════════════════════════════════════════════
-//  DATA
-// ══════════════════════════════════════════════
-var KIDS    = ['תמר','יאיר','שירה','דניאלה'];
-var TRASH_K = ['יאיר','שירה'];
-var TOILET_K= ['תמר','שירה','דניאלה'];
-var COLORS  = {תמר:'#ff6b6b', יאיר:'#4ecdc4', שירה:'#f7a440', דניאלה:'#a55eea'};
-var SLUGS   = {תמר:'tamar', יאיר:'yair', שירה:'shira', דניאלה:'daniela'};
-var NAMES   = {tamar:'תמר', yair:'יאיר', shira:'שירה', daniela:'דניאלה'};
-var DAYS_HE = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
-var HEB_M   = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
-var START   = new Date(2026,1,26);
-var END     = new Date(2026,3,1);
-
-// ══════════════════════════════════════════════
-//  SCHEDULE
-// ══════════════════════════════════════════════
-function getDays(){
-  var d=[], cur=new Date(START);
-  while(cur<END){ d.push(new Date(cur)); cur.setDate(cur.getDate()+1); }
-  return d;
-}
 function lowest(pool, load, excl){
   return pool.filter(function(k){ return excl.indexOf(k)===-1; })
              .sort(function(a,b){ return load[a]-load[b]; })[0];
@@ -801,24 +644,9 @@ function toggleFri(name){
 //  WHATSAPP
 // ══════════════════════════════════════════════
 var WA_PHONES={tamar:'972585030804',yair:'972585140108',shira:'972505565559',daniela:'972508655553'};
-function loadWAPhones(){
-  try{ var s=localStorage.getItem('wa_p'); if(s) Object.assign(WA_PHONES,JSON.parse(s)); }catch(e){}
-}
-function saveWAPhones(){
-  ['tamar','yair','shira','daniela'].forEach(function(s){
-    var inp=document.getElementById('wa_'+s); if(inp) WA_PHONES[s]=inp.value.trim();
-  });
-  try{localStorage.setItem('wa_p',JSON.stringify(WA_PHONES));}catch(e){}
-  var msg=document.getElementById('wa-save-msg'); if(msg){msg.style.display='inline';setTimeout(function(){msg.style.display='none';},2000);}
-  buildWABtns(null);
-}
-function buildWAPhoneInputs(){
-  var el=document.getElementById('wa-phones-list'); if(!el) return;
-  var slugs=['tamar','yair','shira','daniela'];
-  el.innerHTML=slugs.map(function(s){
-    return '<div class="wa-phone-row"><span class="wa-name" style="color:'+FRI_COLORS[s]+'">'+FRI_NAMES[s]+'</span><input id="wa_'+s+'" class="wa-input" type="tel" value="'+(WA_PHONES[s]||'')+'" placeholder="972501234567"/></div>';
-  }).join('')+'<span id="wa-save-msg" style="display:none;font-size:.76rem;color:#25d366;margin-right:6px;">✓ נשמר</span>';
-}
+
+
+
 function buildWABtns(todayRow){
   var el=document.getElementById('wa-btns'); if(!el) return;
   if(!todayRow){ el.innerHTML=''; return; }
@@ -827,21 +655,44 @@ function buildWABtns(todayRow){
     {label:'לפנות מדיח 🍽️',child:todayRow.dish}
   ];
   if(todayRow.trash) tasks.push({label:'זבל 🗑️',child:todayRow.trash});
+  if(todayRow.t1) tasks.push({label:'שירותים 🚽',child:todayRow.t1});
+  if(todayRow.t2) tasks.push({label:'שירותים 🚽',child:todayRow.t2});
+  if(todayRow.binWash) tasks.push({label:'שטיפת פח 🪣',child:'יאיר'});
   var byChild={};
   tasks.forEach(function(t){ if(!byChild[t.child]) byChild[t.child]=[]; byChild[t.child].push(t.label); });
   var slugs_map={תמר:'tamar',יאיר:'yair',שירה:'shira',דניאלה:'daniela'};
-  el.innerHTML=Object.keys(byChild).map(function(name){
+
+  // Build individual buttons + "send all" button
+  var childBtns=Object.keys(byChild).map(function(name){
     var s=slugs_map[name], phone=WA_PHONES[s], color=COLORS[name];
     var msg=encodeURIComponent('היי '+name+' 😊 תזכורת למטלות היום: '+byChild[name].join(' ו'));
     var url=phone?'https://wa.me/'+phone.replace(/\D/g,'')+'?text='+msg:'https://wa.me/?text='+msg;
     return '<a href="'+url+'" target="_blank" style="text-decoration:none;"><button class="wa-child-btn" style="border-color:'+color+';color:'+color+';">📱 '+name+'</button></a>';
   }).join('');
+
+  // "Send all" button
+  var allBtn = '<button onclick="sendToAll()" style="font-family:Heebo,sans-serif;font-size:.82rem;font-weight:700;padding:7px 16px;border:none;border-radius:50px;background:#25d366;color:white;cursor:pointer;margin-top:6px;width:100%;">📲 שלח לכולם בלחיצה אחת</button>';
+
+  el.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:6px;">'+childBtns+'</div>' + allBtn;
+
+  // Store urls for sendToAll
+  el.dataset.urls = JSON.stringify(Object.keys(byChild).map(function(name){
+    var s=slugs_map[name], phone=WA_PHONES[s];
+    var msg=encodeURIComponent('היי '+name+' 😊 תזכורת למטלות היום: '+byChild[name].join(' ו'));
+    return phone?'https://wa.me/'+phone.replace(/\D/g,'')+'?text='+msg:'https://wa.me/?text='+msg;
+  }));
 }
-function toggleWA(){
-  var s=document.getElementById('wa-settings');
-  if(s.style.display==='block'){ s.style.display='none'; }
-  else { s.style.display='block'; buildWAPhoneInputs(); }
+
+function sendToAll(){
+  var el=document.getElementById('wa-btns');
+  var urls=JSON.parse(el.dataset.urls||'[]');
+  if(urls.length===0) return;
+  // Open first immediately, rest with delays
+  urls.forEach(function(url, i){
+    setTimeout(function(){ window.open(url,'_blank'); }, i*1500);
+  });
 }
+
 
 // ══════════════════════════════════════════════
 //  NAVIGATION
@@ -910,7 +761,6 @@ if(db){
 // ══════════════════════════════════════════════
 loadShop();
 loadFriday();
-loadWAPhones();
 
 // Page subtitle
 (function(){
