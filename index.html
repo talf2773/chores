@@ -575,14 +575,18 @@ var todayData=null, tomorrowData=null;
 
 
 function initChoresPage() {
-  var c1 = document.getElementById('today-cards');
-  var c2 = document.getElementById('tomorrow-cards');
   buildDayCards(todayData,    'today-cards',    'today-date-label');
   buildDayCards(tomorrowData, 'tomorrow-cards', 'tomorrow-date-label');
   var sub = document.getElementById('chores-card-sub');
   if(sub) sub.innerHTML='<span style="color:#636e72;font-size:0.82rem">מהיום עד 1/4/2026</span>';
   if(typeof buildWASendBtns === 'function') buildWASendBtns();
 }
+
+// Run immediately when script loads - no waiting
+(function(){
+  buildDayCards(todayData, 'today-cards', 'today-date-label');
+  buildDayCards(tomorrowData, 'tomorrow-cards', 'tomorrow-date-label');
+})();
 
 // ═══ CALENDAR CHILD VIEW ═══
 document.getElementById('cal-child-row').addEventListener('click', function(e){
