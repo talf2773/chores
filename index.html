@@ -689,7 +689,12 @@ function loadShop(){
 }
 function saveShop(){
   try{localStorage.setItem('shop_items_v5',JSON.stringify(shopItems));}catch(e){}
-  try{if(db)db.ref('shop/items').set(shopItems);}catch(e){}
+  try{
+    if(db){
+      if(typeof shopIgnoreNext!=='undefined') shopIgnoreNext=true;
+      db.ref('shop/items').set(shopItems);
+    }
+  }catch(e){}
 }
 
 function updateShopSummary(){
@@ -794,6 +799,9 @@ document.getElementById('shop-grid').addEventListener('click', function(e){
 function autoCategory(name) {
   var n = name.toLowerCase();
 
+  // בדיקות ספציפיות לפני הכלליות
+  if(n.includes('צ׳ילי') || n.includes('צילי') || n.includes("צ'ילי") || n.includes('פלפל חריף')) return 'ירקות ופירות';
+
   var veggies = [
     // פירות
     'תפוח','בננה','תפוז','לימון','ענב','אבטיח','מלון','תות','אפרסק','שזיף','אגס',
@@ -806,7 +814,7 @@ function autoCategory(name) {
     'כוסברה','בזיליקום','עירית','רוקט','בטטה','תפוח אדמה','תפו״א','לפת','סלק',
     'ארטישוק','אפונה','שעועית','עדשים','חציל','כרישה','פנל','צנון','מולי',
     'עלי תרד','עלים','ירק','ירקות','עשבי תיבול','קולרבי','אנדיב','עגבניות שרי',
-    'תירס','כוכב ים','חמאית','בייבי','קייל','ג׳ינג׳ר','שאלוט',
+    'תירס','כוכב ים','חמאית','בייבי','קייל','ג׳ינג׳ר','שאלוט','פלפל צ׳ילי','פלפל חריף','צ׳ילי','ציליפלפל',
     // אגוזים ויבשים
     'שקד','אגוז','צימוק','פיסטוק','קשיו','פקאן','מקדמיה','צנוברים','גרעינים',
     'חמניות','דלעת','זרעים','פירות יבשים','חמוציות','קרנברי','תמרים'
@@ -856,7 +864,7 @@ function autoCategory(name) {
     'מיץ','מים','שתייה','קולה','סודה','בירה','יין','אלכוהול','ליקר',
     'טונה','סרדין','שימורים','קרם','ממרח','ממרחים','רסק','עגבניות',
     'ספגטי','מקרוני','פנה','ניוקי','לזניה',
-    'גלידה','שרבט','קרטיב','אייסבר','מקלון','נוטלה','חמאת בוטנים','לוטוס','שוקו','ממרח שוקולד'
+    'גלידה','שרבט','קרטיב','אייסבר','מקלון','נוטלה','חמאת בוטנים','לוטוס','שוקו','ממרח שוקולד','אטריות','ערמונים'
   ];
   for(var i=0;i<supermarket.length;i++) if(n.includes(supermarket[i])) return 'סופר';
   for(var i=0;i<veggies.length;i++) if(n.includes(veggies[i])) return 'ירקות ופירות';
@@ -1358,13 +1366,15 @@ function applyFridayData(data) {
 if(db) {
 
   // ── SHOP ──
+  var shopIgnoreNext = false;
   db.ref('shop/items').on('value', function(snap) {
     var data = snap.val();
     if(!data || !Array.isArray(data)) {
-      if(!data && db) db.ref('shop/items').set(shopItems); // push defaults if empty
+      if(!data) db.ref('shop/items').set(shopItems);
       return;
     }
-    if(JSON.stringify(data) === JSON.stringify(shopItems)) return;
+    // Skip if this update was triggered by our own save
+    if(shopIgnoreNext) { shopIgnoreNext = false; return; }
     shopItems = data;
     try { localStorage.setItem('shop_items_v5', JSON.stringify(shopItems)); } catch(e) {}
     updateShopSummary();
