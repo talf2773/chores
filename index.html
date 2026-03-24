@@ -14,16 +14,15 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script>
-  var db = {
-    ref: function() { return { set:function(){}, on:function(){}, once:function(ev,cb){ cb({val:function(){return null;}}); } }; }
-  };
+  var db = null;
   window.addEventListener('load', function() {
     try {
       if(typeof firebase !== 'undefined') {
         firebase.initializeApp({ databaseURL: 'https://chores-family-d2fe0-default-rtdb.europe-west1.firebasedatabase.app' });
         db = firebase.database();
+        startFirebaseSync();
       }
-    } catch(e) {}
+    } catch(e) { console.log('Firebase error:', e); }
   });
 </script>
 <style>
@@ -689,12 +688,7 @@ function loadShop(){
 }
 function saveShop(){
   try{localStorage.setItem('shop_items_v5',JSON.stringify(shopItems));}catch(e){}
-  try{
-    if(db){
-      if(typeof shopIgnoreNext!=='undefined') shopIgnoreNext=true;
-      db.ref('shop/items').set(shopItems);
-    }
-  }catch(e){}
+  try{if(db) db.ref('shop/items').set(shopItems);}catch(e){}
 }
 
 function updateShopSummary(){
@@ -1337,33 +1331,8 @@ window.scrollTo(0, 0);
 setTimeout(function(){ initChoresPage(); }, 50);
 
 // ═══ FIREBASE SYNC ═══
-var fbInitialized = false;
-
-function parsePoll(raw) {
-  if(!raw) return [];
-  if(Array.isArray(raw)) return raw;
-  if(typeof raw === 'object') return Object.values(raw);
-  return [];
-}
-
-function applyFridayData(data) {
-  if(!data) return;
-  if(data.coming) fridayData.coming = data.coming;
-  fridayData.poll = parsePoll(data.poll);
-  if(data.taskDone) {
-    fridayData.tasks.forEach(function(t){
-      if(data.taskDone[t.id] !== undefined) t.done = data.taskDone[t.id];
-    });
-  }
-  try { localStorage.setItem('friday_v2', JSON.stringify({
-    coming: fridayData.coming, poll: fridayData.poll, taskDone: data.taskDone||{}
-  })); } catch(e) {}
-  renderComingSummary();
-  renderPoll();
-  renderFridayTasks();
-}
-
-if(db) {
+function startFirebaseSync() {
+  if(!db) return;
 
   // ── SHOP ──
   var shopIgnoreNext = false;
@@ -1373,7 +1342,6 @@ if(db) {
       if(!data) db.ref('shop/items').set(shopItems);
       return;
     }
-    // Skip if this update was triggered by our own save
     if(shopIgnoreNext) { shopIgnoreNext = false; return; }
     shopItems = data;
     try { localStorage.setItem('shop_items_v5', JSON.stringify(shopItems)); } catch(e) {}
@@ -1381,13 +1349,12 @@ if(db) {
     renderShopGrid();
   });
 
-  // ── TASK DONE SYNC (only sync between devices, don't rebuild on own changes) ──
+  // ── TASK DONE SYNC ──
   var taskSnapCount = 0;
   db.ref('tasks').on('value', function(snap) {
     taskSnapCount++;
-    if(taskSnapCount === 1) return; // skip initial fire - we already built from localStorage
-    var data = snap.val();
-    if(!data) return;
+    if(taskSnapCount === 1) return;
+    var data = snap.val(); if(!data) return;
     var changed = false;
     Object.keys(data).forEach(function(key) {
       try {
@@ -1407,13 +1374,12 @@ if(db) {
   });
 
   // ── FRIDAY ──
-  var fridaySnapCount = 0;
   db.ref('friday').on('value', function(snap) {
-    fridaySnapCount++;
-    var data = snap.val();
-    if(!data) return;
+    var data = snap.val(); if(!data) return;
+    var poll = data.poll;
+    if(poll && typeof poll==='object' && !Array.isArray(poll)) poll = Object.values(poll);
     if(data.coming) fridayData.coming = data.coming;
-    fridayData.poll = parsePoll(data.poll);
+    if(poll) fridayData.poll = poll;
     if(data.taskDone) {
       fridayData.tasks.forEach(function(t){
         if(data.taskDone[t.id] !== undefined) t.done = data.taskDone[t.id];
@@ -1422,13 +1388,11 @@ if(db) {
     try { localStorage.setItem('friday_v2', JSON.stringify({
       coming: fridayData.coming, poll: fridayData.poll, taskDone: data.taskDone||{}
     })); } catch(e) {}
-    // Always render friday (it's a separate page so no conflict)
     renderComingSummary();
     renderPoll();
     renderFridayTasks();
   });
-
-} // end if(db)
+} // end startFirebaseSync
 
 
 // Generate app icon as PNG
