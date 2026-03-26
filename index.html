@@ -311,17 +311,7 @@
   <div class="day-section-title">📅 היום — <span id="today-date-label"></span></div>
   <div class="task-grid" id="today-cards"></div>
 
-  <div id="whatsapp-section" style="margin-top:14px;">
-    <button id="wa-toggle-btn" onclick="toggleWASettings()" style="font-family:'Heebo',sans-serif;font-size:0.82rem;font-weight:600;padding:7px 16px;border:2px solid #25d366;border-radius:50px;background:white;color:#25d366;cursor:pointer;display:flex;align-items:center;gap:6px;margin-bottom:10px;">
-      <span>📱</span><span>שלח תזכורות בוואטסאפ</span>
-    </button>
-    <div id="wa-settings" style="display:none;background:#f9fffe;border:2px solid #e0f8ee;border-radius:14px;padding:14px;margin-bottom:10px;">
-      <p style="font-size:0.78rem;color:#636e72;margin-bottom:10px;">הזיני מספרי טלפון (עם קידומת מדינה, למשל 972501234567):</p>
-      <div id="wa-phones" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;"></div>
-      <button onclick="saveWAPhones()" style="font-family:'Heebo',sans-serif;font-size:0.8rem;font-weight:700;padding:7px 18px;border:none;border-radius:50px;background:#25d366;color:white;cursor:pointer;">שמור מספרים</button>
-      <span id="wa-saved-msg" style="font-size:0.78rem;color:#25d366;margin-right:8px;display:none;">✓ נשמר</span>
-    </div>
-    <div id="wa-send-btns" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+  <div id="whatsapp-section" style="margin-top:14px;"><div id="wa-send-btns"></div></div>
   </div>
 
   <div class="section-divider"></div>
@@ -474,17 +464,21 @@ function pickLowest(cands,load,excl){
 function buildSchedule(){
   var days=getDays(),load={'תמר':0,'יאיר':0,'שירה':0,'דניאלה':0},sch=[];
   days.forEach(function(date,i){
-    var trash=null,toilet1=null,toilet2=null,binWash=false,used=[];
-    if(i%2===0){trash=pickLowest(TRASH_K,load,[]);load[trash]++;used.push(trash);}
-    // Weekly toilet cleaning - 2 kids (not יאיר)
+    var trash=null,toilet=null,used=[];
+    // זבל כל יום — רק יאיר ושירה
+    trash=pickLowest(TRASH_K,load,[]);
+    if(trash){load[trash]++;used.push(trash);}
+    // שירותים פעם בשבוע — כולם
     if(i%7===0){
-      toilet1=pickLowest(TOILET_K,load,used);load[toilet1]++;used.push(toilet1);
-      toilet2=pickLowest(TOILET_K,load,used);load[toilet2]++;used.push(toilet2);
-      binWash=true; // יאיר washes bin same day
+      toilet=pickLowest(ALL,load,used);
+      if(toilet){load[toilet]++;used.push(toilet);}
     }
-    var lucy=pickLowest(ALL,load,used);load[lucy]++;used.push(lucy);
-    var dish=pickLowest(ALL,load,used);load[dish]++;
-    sch.push({date:date,lucy:lucy,dish:dish,trash:trash,toilet1:toilet1,toilet2:toilet2,binWash:binWash});
+    // לוסי ומדיח — כל יום
+    var lucy=pickLowest(ALL,load,used);
+    if(lucy){load[lucy]++;used.push(lucy);}
+    var dish=pickLowest(ALL,load,used);
+    if(dish){load[dish]++;}
+    sch.push({date:date,lucy:lucy,dish:dish,trash:trash,toilet1:toilet});
   });
   return sch;
 }
@@ -522,12 +516,10 @@ function buildDayCards(rowData, containerId, labelId) {
   container.innerHTML='';
   var tasks=[
     {id:'lucy',  icon:'🐕', label:'להוציא את לוסי, לתת אוכל ומים', child:rowData.lucy},
-    {id:'dish',  icon:'🍽️', label:'לפנות מדיח',     child:rowData.dish}
+    {id:'dish',  icon:'🍽️', label:'לפנות מדיח',                    child:rowData.dish}
   ];
-  if(rowData.trash) tasks.push({id:'trash', icon:'🗑️', label:'להוציא זבל', child:rowData.trash});
+  if(rowData.trash)   tasks.push({id:'trash',   icon:'🗑️', label:'להוציא זבל',    child:rowData.trash});
   if(rowData.toilet1) tasks.push({id:'toilet1', icon:'🚽', label:'לנקות שירותים', child:rowData.toilet1});
-  if(rowData.toilet2) tasks.push({id:'toilet2', icon:'🚽', label:'לנקות שירותים', child:rowData.toilet2});
-  if(rowData.binWash) tasks.push({id:'binwash', icon:'🪣', label:'לשטוף פח זבל', child:'יאיר'});
   tasks.forEach(function(t){
     var done = isTaskDone(rowData.date, t.id);
     var div=document.createElement('div');
@@ -1232,10 +1224,6 @@ function saveWAPhones() {
   buildWASendBtns();
 }
 
-function toggleWASettings() {
-  var s = document.getElementById('wa-settings');
-  if(s) s.style.display = s.style.display==='none' ? 'block' : 'none';
-}
 
 function buildWAPhoneInputs() {
   var phones = loadWAPhones();
@@ -1256,36 +1244,34 @@ function buildWASendBtns() {
   var phones = loadWAPhones();
   var container = document.getElementById('wa-send-btns');
   if(!container || !todayData) return;
-  var msgs = [];
   var tasks = [
-    {id:'lucy', label:'להוציא את לוסי, לתת אוכל ומים 🐕', child:todayData.lucy},
-    {id:'dish',  label:'לפנות מדיח 🍽️', child:todayData.dish}
+    {id:'lucy',   label:'להוציא את לוסי, לתת אוכל ומים 🐕', child:todayData.lucy},
+    {id:'dish',   label:'לפנות מדיח 🍽️',                    child:todayData.dish}
   ];
-  if(todayData.trash) tasks.push({id:'trash', label:'להוציא זבל 🗑️', child:todayData.trash});
-
-  // Group tasks by child
+  if(todayData.trash)   tasks.push({id:'trash',   label:'להוציא זבל 🗑️',    child:todayData.trash});
+  if(todayData.toilet1) tasks.push({id:'toilet1', label:'לנקות שירותים 🚽', child:todayData.toilet1});
   var byChild = {};
   tasks.forEach(function(t){
     if(!byChild[t.child]) byChild[t.child] = [];
     byChild[t.child].push(t.label);
   });
-
-  var html = '';
+  var urlList = [];
   Object.keys(byChild).forEach(function(name){
-    var slug = SLUG[name];
-    var phone = phones[slug];
-    var color = COLORS[name];
-    var taskList = byChild[name].join(' ו');
-    var msg = encodeURIComponent('היי ' + name + ' 😊 תזכורת למטלות היום: ' + taskList);
-    var waUrl = phone
-      ? 'https://wa.me/' + phone.replace(/[^0-9]/g,'') + '?text=' + msg
-      : 'https://wa.me/?text=' + msg;
-    html += '<a href="'+waUrl+'" target="_blank" style="text-decoration:none;">'
-      + '<button style="font-family:Heebo,sans-serif;font-size:0.82rem;font-weight:700;padding:7px 16px;border:2px solid '+color+';border-radius:50px;background:white;color:'+color+';cursor:pointer;display:flex;align-items:center;gap:5px;">'
-      + '<span>📱</span><span>'+name+'</span>'
-      + '</button></a>';
+    var slug=SLUG[name], phone=phones[slug];
+    var msg=encodeURIComponent('היי '+name+' 😊 תזכורת למטלות היום: '+byChild[name].join(' ו'));
+    urlList.push(phone?'https://wa.me/'+phone.replace(/[^0-9]/g,'')+'?text='+msg:'https://wa.me/?text='+msg);
   });
-  container.innerHTML = html || '';
+  container.dataset.urls = JSON.stringify(urlList);
+  container.innerHTML = urlList.length
+    ? '<button onclick="sendToAll()" style="font-family:Heebo,sans-serif;font-size:0.88rem;font-weight:700;padding:9px 20px;border:none;border-radius:50px;background:#25d366;color:white;cursor:pointer;width:100%;">📲 שלח תזכורות לכולם בוואטסאפ</button>'
+    : '';
+}
+
+
+function sendToAll(){
+  var container=document.getElementById('wa-send-btns');
+  var urls=JSON.parse(container.dataset.urls||'[]');
+  urls.forEach(function(url,i){ setTimeout(function(){ window.open(url,'_blank'); }, i*1500); });
 }
 
 function initWA() {
