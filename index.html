@@ -1246,33 +1246,28 @@ function buildWASendBtns() {
   if(!container || !todayData) return;
   var tasks = [
     {id:'lucy',   label:'להוציא את לוסי, לתת אוכל ומים 🐕', child:todayData.lucy},
-    {id:'dish',   label:'לפנות מדיח 🍽️',                    child:todayData.dish}
+    {id:'dish',   label:'לפנות מדיח 🍽️',                    child:todayData.dish},
+    {id:'trash',  label:'להוציא זבל 🗑️',                    child:todayData.trash}
   ];
-  if(todayData.trash)   tasks.push({id:'trash',   label:'להוציא זבל 🗑️',    child:todayData.trash});
   if(todayData.toilet1) tasks.push({id:'toilet1', label:'לנקות שירותים 🚽', child:todayData.toilet1});
   var byChild = {};
   tasks.forEach(function(t){
+    if(!t.child) return;
     if(!byChild[t.child]) byChild[t.child] = [];
     byChild[t.child].push(t.label);
   });
-  var urlList = [];
+  var html = '';
   Object.keys(byChild).forEach(function(name){
-    var slug=SLUG[name], phone=phones[slug];
+    var slug=SLUG[name], phone=phones[slug], color=COLORS[name];
     var msg=encodeURIComponent('היי '+name+' 😊 תזכורת למטלות היום: '+byChild[name].join(' ו'));
-    urlList.push(phone?'https://wa.me/'+phone.replace(/[^0-9]/g,'')+'?text='+msg:'https://wa.me/?text='+msg);
+    var url=phone?'https://wa.me/'+phone.replace(/[^0-9]/g,'')+'?text='+msg:'https://wa.me/?text='+msg;
+    html+='<a href="'+url+'" target="_blank" style="text-decoration:none;">'
+      +'<button style="font-family:Heebo,sans-serif;font-size:0.82rem;font-weight:700;padding:7px 16px;border:2px solid '+color+';border-radius:50px;background:white;color:'+color+';cursor:pointer;">📱 '+name+'</button></a>';
   });
-  container.dataset.urls = JSON.stringify(urlList);
-  container.innerHTML = urlList.length
-    ? '<button onclick="sendToAll()" style="font-family:Heebo,sans-serif;font-size:0.88rem;font-weight:700;padding:9px 20px;border:none;border-radius:50px;background:#25d366;color:white;cursor:pointer;width:100%;">📲 שלח תזכורות לכולם בוואטסאפ</button>'
-    : '';
+  container.innerHTML = html;
 }
 
 
-function sendToAll(){
-  var container=document.getElementById('wa-send-btns');
-  var urls=JSON.parse(container.dataset.urls||'[]');
-  urls.forEach(function(url,i){ setTimeout(function(){ window.open(url,'_blank'); }, i*1500); });
-}
 
 function initWA() {
   buildWAPhoneInputs();
