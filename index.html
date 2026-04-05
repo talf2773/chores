@@ -301,7 +301,7 @@
   <div class="card-icon">📋</div>
   <div class="card-info">
     <h3>רשימת מטלות</h3>
-    <div class="card-sub" id="chores-card-sub"><span style="color:#b2bec3;font-size:0.82rem">מהיום עד 1/4/2026</span></div>
+    <div class="card-sub" id="chores-card-sub"><span style="color:#b2bec3;font-size:0.82rem">מהיום עד 1/5/2026</span></div>
   </div>
   <div class="card-arrow">▼</div>
 </div>
@@ -447,7 +447,7 @@ var COLORS  = {'תמר':'#ff6b6b','יאיר':'#4ecdc4','שירה':'#f7a440','ד�
 var SLUG    = {'תמר':'tamar','יאיר':'yair','שירה':'shira','דניאלה':'daniela'};
 var DAYS_HE = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 var HEB_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
-var START = new Date(2026,1,26), END = new Date(2026,3,1);
+var START = new Date(2026,1,26), END = new Date(2026,4,1);
 
 // Page subtitle
 (function(){
@@ -569,7 +569,7 @@ function initChoresPage() {
   buildDayCards(todayData,    'today-cards',    'today-date-label');
   buildDayCards(tomorrowData, 'tomorrow-cards', 'tomorrow-date-label');
   var sub = document.getElementById('chores-card-sub');
-  if(sub) sub.innerHTML='<span style="color:#636e72;font-size:0.82rem">מהיום עד 1/4/2026</span>';
+  if(sub) sub.innerHTML='<span style="color:#636e72;font-size:0.82rem">מהיום עד 1/5/2026</span>';
   if(typeof buildWASendBtns === 'function') buildWASendBtns();
 }
 
