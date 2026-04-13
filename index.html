@@ -13,16 +13,29 @@
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Heebo:wght@300;400;600;700&family=Rubik:wght@700;800&family=Secular+One&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script>
   var db = null;
   window.addEventListener('load', function() {
     try {
       if(typeof firebase !== 'undefined') {
-        firebase.initializeApp({ databaseURL: 'https://chores-family-d2fe0-default-rtdb.europe-west1.firebasedatabase.app' });
+        firebase.initializeApp({
+          databaseURL: 'https://chores-family-d2fe0-default-rtdb.europe-west1.firebasedatabase.app',
+          apiKey: 'AIzaSyDummyKeyForAnonymousAuth'
+        });
         db = firebase.database();
-        startFirebaseSync();
+        // Sign in anonymously — no UI, no passwords, automatic
+        firebase.auth().signInAnonymously().then(function() {
+          startFirebaseSync();
+        }).catch(function(e) {
+          // Auth failed — still run sync (works if rules are open)
+          console.log('Auth error:', e);
+          startFirebaseSync();
+        });
       }
-    } catch(e) { console.log('Firebase error:', e); }
+    } catch(e) {
+      console.log('Firebase error:', e);
+    }
   });
 </script>
 <style>
