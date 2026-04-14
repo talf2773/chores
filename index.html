@@ -20,8 +20,13 @@
     try {
       if(typeof firebase !== 'undefined') {
         firebase.initializeApp({
+          apiKey: 'AIzaSyAqT8D0NJkjckiIKyC9CoIv6OfUv1-FzkY',
+          authDomain: 'chores-family-d2fe0.firebaseapp.com',
           databaseURL: 'https://chores-family-d2fe0-default-rtdb.europe-west1.firebasedatabase.app',
-          apiKey: 'AIzaSyDummyKeyForAnonymousAuth'
+          projectId: 'chores-family-d2fe0',
+          storageBucket: 'chores-family-d2fe0.firebasestorage.app',
+          messagingSenderId: '804509267473',
+          appId: '1:804509267473:web:9c7bdf315c699eb93923b0'
         });
         db = firebase.database();
         // Sign in anonymously — no UI, no passwords, automatic
