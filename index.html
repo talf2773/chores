@@ -44,7 +44,7 @@
   });
 </script>
 <style>
-  :root { --bg: #fdf6ec; --text: #2d3436; --muted: #b2bec3; }
+  :root { --bg: #fdf6ec; --text: #2d3436; --muted: #b2bec3; --red: #ff6b6b; --teal: #4ecdc4; --orange: #f7a440; --purple: #a55eea; --green: #55efc4; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: 'Heebo', sans-serif; background: var(--bg); color: var(--text);
@@ -319,7 +319,7 @@
   <div class="card-icon">📋</div>
   <div class="card-info">
     <h3>רשימת מטלות</h3>
-    <div class="card-sub" id="chores-card-sub"><span style="color:#b2bec3;font-size:0.82rem">מהיום עד 1/5/2026</span></div>
+    <div class="card-sub" id="chores-card-sub"><span style="color:#b2bec3;font-size:0.82rem">מהיום עד 31/7/2026</span></div>
   </div>
   <div class="card-arrow">▼</div>
 </div>
@@ -330,7 +330,6 @@
   <div class="task-grid" id="today-cards"></div>
 
   <div id="whatsapp-section" style="margin-top:14px;"><div id="wa-send-btns"></div></div>
-  </div>
 
   <div class="section-divider"></div>
 
@@ -465,7 +464,7 @@ var COLORS  = {'תמר':'#ff6b6b','יאיר':'#4ecdc4','שירה':'#f7a440','ד�
 var SLUG    = {'תמר':'tamar','יאיר':'yair','שירה':'shira','דניאלה':'daniela'};
 var DAYS_HE = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 var HEB_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
-var START = new Date(2026,1,26), END = new Date(2026,4,1);
+var START = new Date(2026,1,26), END = new Date(2026,7,1);
 
 // Page subtitle
 (function(){
@@ -475,27 +474,72 @@ var START = new Date(2026,1,26), END = new Date(2026,4,1);
 })();
 
 function getDays(){var days=[],d=new Date(START);while(d<END){days.push(new Date(d));d.setDate(d.getDate()+1);}return days;}
-function pickLowest(cands,load,excl){
-  var pool=cands.filter(function(c){return excl.indexOf(c)===-1;});
-  pool.sort(function(a,b){return load[a]-load[b];});return pool[0];
+function pickLowest(cands,load,excl,prev){
+  // prev = who did this task yesterday (avoid 2 days in a row)
+  var pool=cands.filter(function(c){return excl.indexOf(c)===-1 && c!==prev;});
+  if(!pool.length) pool=cands.filter(function(c){return excl.indexOf(c)===-1;});
+  pool.sort(function(a,b){return load[a]-load[b];});return pool[0]||null;
 }
 function buildSchedule(){
-  var days=getDays(),load={'תמר':0,'יאיר':0,'שירה':0,'דניאלה':0},sch=[];
+  var days=getDays(), sch=[];
+  // תקופה א: 26/1 עד 27/4 — כולם
+  // תקופה ב: 27/4 עד 1/8 — ללא תמר
+  var SPLIT = new Date(2026,3,27); // April 27
+
+  // תקופה א — כל 4 ילדים
+  var loadA={'תמר':0,'יאיר':0,'שירה':0,'דניאלה':0};
+  var prevA={trash:null,toilet:null,lucy:null,dish:null};
+  var TRASH_A=['יאיר','שירה'], ALL_A=['תמר','יאיר','שירה','דניאלה'];
+
+  // תקופה ב — ללא תמר
+  var loadB_lucy  ={'דניאלה':0,'שירה':0};
+  var loadB_dish  ={'דניאלה':0,'שירה':0};
+  var loadB_toilet={'יאיר':0,'שירה':0,'דניאלה':0};
+  var prevB={lucy:null,dish:null,toilet:null};
+
+  var toiletIdxA=0, toiletIdxB=0;
+
   days.forEach(function(date,i){
-    var trash=null,toilet=null,used=[];
-    // זבל כל יום — רק יאיר ושירה
-    trash=pickLowest(TRASH_K,load,[]);
-    if(trash){load[trash]++;used.push(trash);}
-    // שירותים פעם בשבוע — כולם
-    if(i%7===0){
-      toilet=pickLowest(ALL,load,used);
-      if(toilet){load[toilet]++;used.push(toilet);}
+    var isB = date >= SPLIT;
+    var trash=null,toilet=null,lucy=null,dish=null;
+
+    if(!isB){
+      // ── תקופה א ──
+      var used=[];
+      trash=pickLowest(TRASH_A,loadA,[],prevA.trash);
+      if(trash){loadA[trash]++;used.push(trash);}
+      if(toiletIdxA%7===0){
+        toilet=pickLowest(ALL_A,loadA,used,prevA.toilet);
+        if(toilet){loadA[toilet]++;used.push(toilet);}
+      }
+      lucy=pickLowest(ALL_A,loadA,used,prevA.lucy);
+      if(lucy){loadA[lucy]++;used.push(lucy);}
+      if(used.length<4){
+        dish=pickLowest(ALL_A,loadA,used,prevA.dish);
+        if(dish)loadA[dish]++;
+      }
+      toiletIdxA++;
+      prevA={trash:trash,toilet:toilet,lucy:lucy,dish:dish};
+    } else {
+      // ── תקופה ב ── ללא תמר
+      // זבל — יאיר בלבד
+      trash='יאיר';
+      // שירותים פעם בשבוע
+      if(toiletIdxB%7===0){
+        toilet=pickLowest(['יאיר','שירה','דניאלה'],loadB_toilet,[],prevB.toilet);
+        if(toilet)loadB_toilet[toilet]++;
+      }
+      // לוסי — דניאלה/שירה
+      lucy=pickLowest(['דניאלה','שירה'],loadB_lucy,[],prevB.lucy);
+      if(lucy)loadB_lucy[lucy]++;
+      // מדיח — דניאלה/שירה (לא אותו כמו לוסי)
+      dish=pickLowest(['דניאלה','שירה'],loadB_dish,[lucy]||[],prevB.dish);
+      if(!dish) dish=pickLowest(['דניאלה','שירה'],loadB_dish,[],prevB.dish);
+      if(dish)loadB_dish[dish]++;
+      toiletIdxB++;
+      prevB={lucy:lucy,dish:dish,toilet:toilet};
     }
-    // לוסי ומדיח — כל יום
-    var lucy=pickLowest(ALL,load,used);
-    if(lucy){load[lucy]++;used.push(lucy);}
-    var dish=pickLowest(ALL,load,used);
-    if(dish){load[dish]++;}
+
     sch.push({date:date,lucy:lucy,dish:dish,trash:trash,toilet1:toilet});
   });
   return sch;
@@ -808,7 +852,7 @@ function autoCategory(name) {
 
   var veggies = [
     // פירות
-    'תפוח','בננה','תפוז','לימון','ענב','אבטיח','מלון','תות','אפרסק','שזיף','אגס',
+    'תפוח','אוכמניות','בננה','תפוז','לימון','ענב','אבטיח','מלון','תות','אפרסק','שזיף','אגס',
     'קלמנטינה','מנדרינה','מנגו','אננס','דובדבן','רימון','תאנה','פפאיה','קיווי',
     'משמש','נקטרינה','פסיפלורה','ליצ׳י','גויאבה','קוקוס','אבוקדו','צבר','תמר',
     'שסק','פלפל אדום','פלפל צהוב','פלפל ירוק','תמרינד','פירות','פרי',
@@ -868,7 +912,7 @@ function autoCategory(name) {
     'מיץ','מים','שתייה','קולה','סודה','בירה','יין','אלכוהול','ליקר',
     'טונה','סרדין','שימורים','קרם','ממרח','ממרחים','רסק','עגבניות',
     'ספגטי','מקרוני','פנה','ניוקי','לזניה',
-    'גלידה','שרבט','קרטיב','אייסבר','מקלון','נוטלה','חמאת בוטנים','לוטוס','שוקו','ממרח שוקולד','אטריות','ערמונים'
+    'גלידה','שרבט','קרטיב','אייסבר','מקלון','נוטלה','טופו','נייר טואלט','גלילי נייר','חמאת בוטנים','לוטוס','שוקו','ממרח שוקולד','אטריות','ערמונים'
   ];
   for(var i=0;i<supermarket.length;i++) if(n.includes(supermarket[i])) return 'סופר';
   for(var i=0;i<veggies.length;i++) if(n.includes(veggies[i])) return 'ירקות ופירות';
