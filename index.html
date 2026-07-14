@@ -464,7 +464,7 @@ var COLORS  = {'תמר':'#ff6b6b','יאיר':'#4ecdc4','שירה':'#f7a440','ד�
 var SLUG    = {'תמר':'tamar','יאיר':'yair','שירה':'shira','דניאלה':'daniela'};
 var DAYS_HE = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 var HEB_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
-var START = new Date(2026,1,26), END = new Date(2026,7,1);
+var START = new Date(2026,1,26), END = new Date(2026,9,1);
 
 // Page subtitle
 (function(){
@@ -482,65 +482,100 @@ function pickLowest(cands,load,excl,prev){
 }
 function buildSchedule(){
   var days=getDays(), sch=[];
-  // תקופה א: 26/1 עד 27/4 — כולם
-  // תקופה ב: 27/4 עד 1/8 — ללא תמר
-  var SPLIT = new Date(2026,3,27); // April 27
+  var SPLIT_B = new Date(2026,3,27);  // April 27 — מעבר ל-3 ילדים (ללא תמר)
+  var SPLIT_C = new Date(2026,7,30);  // Aug 30 — מעבר ל-3 ילדים (ללא יאיר)
 
-  // תקופה א — כל 4 ילדים
+  // ── תקופה א: עד 27/4 — תמר/יאיר/שירה/דניאלה ──
   var loadA={'תמר':0,'יאיר':0,'שירה':0,'דניאלה':0};
   var prevA={trash:null,toilet:null,lucy:null,dish:null};
-  var TRASH_A=['יאיר','שירה'], ALL_A=['תמר','יאיר','שירה','דניאלה'];
+  var tiA=0;
 
-  // תקופה ב — ללא תמר
-  var loadB_lucy  ={'דניאלה':0,'שירה':0};
-  var loadB_dish  ={'דניאלה':0,'שירה':0};
-  var loadB_toilet={'יאיר':0,'שירה':0,'דניאלה':0};
-  var prevB={lucy:null,dish:null,toilet:null};
+  // ── תקופה ב: 27/4–30/8 — יאיר/שירה/דניאלה ──
+  var KB=['יאיר','שירה','דניאלה'];
+  var loadB={lucy:{'יאיר':0,'שירה':0,'דניאלה':0},
+             dish:{'יאיר':0,'שירה':0,'דניאלה':0},
+             trash:{'יאיר':0,'שירה':0,'דניאלה':0},
+             toilet:{'יאיר':0,'שירה':0,'דניאלה':0}};
+  var prevB={trash:null,lucy:null,dish:null,t1:null,t2:null};
+  var tiB=0;
 
-  var toiletIdxA=0, toiletIdxB=0;
+  // ── תקופה ג: מ-30/8 — תמר/שירה/דניאלה ──
+  var KC=['תמר','דניאלה','שירה'];
+  var loadC={lucy:{'תמר':0,'דניאלה':0,'שירה':0},
+             dish:{'תמר':0,'דניאלה':0,'שירה':0},
+             trash:{'תמר':0,'דניאלה':0,'שירה':0},
+             toilet:{'תמר':0,'דניאלה':0,'שירה':0}};
+  var prevC={trash:null,lucy:null,dish:null,t1:null,t2:null};
+  var tiC=0;
+
+  function pl(pool,load,excl,prev){
+    var c=pool.filter(function(k){return excl.indexOf(k)===-1&&k!==prev;});
+    if(!c.length) c=pool.filter(function(k){return excl.indexOf(k)===-1;});
+    return c.sort(function(a,b){return load[a]-load[b];})[0]||null;
+  }
+
+  function period3(K,load,prev,ti){
+    var used=[],t1=null,t2=null,trash=null,lucy=null,dish=null;
+    if(ti%7===0){
+      t1=pl(K,load.toilet,[],prev.t1);
+      if(t1){load.toilet[t1]++;used.push(t1);}
+      t2=pl(K,load.toilet,used,prev.t2);
+      if(t2){load.toilet[t2]++;used.push(t2);}
+    }
+    var free=K.filter(function(k){return used.indexOf(k)===-1;});
+    if(free.length===3){
+      trash=pl(K,load.trash,used,prev.trash);
+      if(trash){load.trash[trash]++;used.push(trash);}
+      lucy=pl(K,load.lucy,used,prev.lucy);
+      if(lucy){load.lucy[lucy]++;used.push(lucy);}
+      dish=pl(K,load.dish,used,prev.dish);
+      if(dish)load.dish[dish]++;
+    } else if(free.length===1){
+      var kid=free[0];
+      var best=['lucy','dish','trash'].sort(function(a,b){return load[a][kid]-load[b][kid];})[0];
+      load[best][kid]++;
+      if(best==='trash')trash=kid; else if(best==='lucy')lucy=kid; else dish=kid;
+    }
+    return {trash:trash,lucy:lucy,dish:dish,t1:t1,t2:t2};
+  }
 
   days.forEach(function(date,i){
-    var isB = date >= SPLIT;
-    var trash=null,toilet=null,lucy=null,dish=null;
+    var trash=null,toilet1=null,toilet2=null,lucy=null,dish=null;
 
-    if(!isB){
+    if(date < SPLIT_B){
       // ── תקופה א ──
-      var used=[];
+      var used=[], ALL=['תמר','יאיר','שירה','דניאלה'], TRASH_A=['יאיר','שירה'];
       trash=pickLowest(TRASH_A,loadA,[],prevA.trash);
       if(trash){loadA[trash]++;used.push(trash);}
-      if(toiletIdxA%7===0){
-        toilet=pickLowest(ALL_A,loadA,used,prevA.toilet);
-        if(toilet){loadA[toilet]++;used.push(toilet);}
+      if(tiA%7===0){
+        toilet1=pickLowest(ALL,loadA,used,prevA.toilet);
+        if(toilet1){loadA[toilet1]++;used.push(toilet1);}
       }
-      lucy=pickLowest(ALL_A,loadA,used,prevA.lucy);
+      lucy=pickLowest(ALL,loadA,used,prevA.lucy);
       if(lucy){loadA[lucy]++;used.push(lucy);}
       if(used.length<4){
-        dish=pickLowest(ALL_A,loadA,used,prevA.dish);
+        dish=pickLowest(ALL,loadA,used,prevA.dish);
         if(dish)loadA[dish]++;
       }
-      toiletIdxA++;
-      prevA={trash:trash,toilet:toilet,lucy:lucy,dish:dish};
+      tiA++;
+      prevA={trash:trash,toilet:toilet1,lucy:lucy,dish:dish};
+
+    } else if(date < SPLIT_C){
+      // ── תקופה ב ──
+      var r=period3(KB,loadB,prevB,tiB);
+      trash=r.trash; lucy=r.lucy; dish=r.dish; toilet1=r.t1; toilet2=r.t2;
+      prevB={trash:trash,lucy:lucy,dish:dish,t1:toilet1,t2:toilet2};
+      tiB++;
+
     } else {
-      // ── תקופה ב ── ללא תמר
-      // זבל — יאיר בלבד
-      trash='יאיר';
-      // שירותים פעם בשבוע
-      if(toiletIdxB%7===0){
-        toilet=pickLowest(['יאיר','שירה','דניאלה'],loadB_toilet,[],prevB.toilet);
-        if(toilet)loadB_toilet[toilet]++;
-      }
-      // לוסי — דניאלה/שירה
-      lucy=pickLowest(['דניאלה','שירה'],loadB_lucy,[],prevB.lucy);
-      if(lucy)loadB_lucy[lucy]++;
-      // מדיח — דניאלה/שירה (לא אותו כמו לוסי)
-      dish=pickLowest(['דניאלה','שירה'],loadB_dish,[lucy]||[],prevB.dish);
-      if(!dish) dish=pickLowest(['דניאלה','שירה'],loadB_dish,[],prevB.dish);
-      if(dish)loadB_dish[dish]++;
-      toiletIdxB++;
-      prevB={lucy:lucy,dish:dish,toilet:toilet};
+      // ── תקופה ג ──
+      var r=period3(KC,loadC,prevC,tiC);
+      trash=r.trash; lucy=r.lucy; dish=r.dish; toilet1=r.t1; toilet2=r.t2;
+      prevC={trash:trash,lucy:lucy,dish:dish,t1:toilet1,t2:toilet2};
+      tiC++;
     }
 
-    sch.push({date:date,lucy:lucy,dish:dish,trash:trash,toilet1:toilet});
+    sch.push({date:date,lucy:lucy,dish:dish,trash:trash,toilet1:toilet1,toilet2:toilet2});
   });
   return sch;
 }
@@ -582,6 +617,7 @@ function buildDayCards(rowData, containerId, labelId) {
   ];
   if(rowData.trash)   tasks.push({id:'trash',   icon:'🗑️', label:'להוציא זבל',    child:rowData.trash});
   if(rowData.toilet1) tasks.push({id:'toilet1', icon:'🚽', label:'לנקות שירותים', child:rowData.toilet1});
+  if(rowData.toilet2) tasks.push({id:'toilet2', icon:'🚽', label:'לנקות שירותים', child:rowData.toilet2});
   tasks.forEach(function(t){
     var done = isTaskDone(rowData.date, t.id);
     var div=document.createElement('div');
@@ -1312,6 +1348,7 @@ function buildWASendBtns() {
     {id:'trash',  label:'להוציא זבל 🗑️',                    child:todayData.trash}
   ];
   if(todayData.toilet1) tasks.push({id:'toilet1', label:'לנקות שירותים 🚽', child:todayData.toilet1});
+  if(todayData.toilet2) tasks.push({id:'toilet2', label:'לנקות שירותים 🚽', child:todayData.toilet2});
   var byChild = {};
   tasks.forEach(function(t){
     if(!t.child) return;
