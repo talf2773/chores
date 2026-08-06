@@ -437,6 +437,25 @@
   </div>
 
 </div>
+<!-- ADMIN PAGE -->
+<div class="page" id="page-admin">
+  <h1 style="color:#636e72;">🔒 האזור שלי</h1>
+  <p class="subtitle">רשימות ומשימות אישיות</p>
+  <div class="card">
+    <div class="sec-title">📝 הערות ומשימות</div>
+    <textarea id="admin-notes" placeholder="כתבי כאן הערות, משימות, רשימות..." style="width:100%;min-height:220px;font-family:Heebo,sans-serif;font-size:0.9rem;border:2px solid #f0f0f0;border-radius:12px;padding:12px;outline:none;resize:vertical;direction:rtl;line-height:1.6;"></textarea>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
+      <button onclick="saveAdminNotes()" style="font-family:Heebo,sans-serif;font-size:0.85rem;font-weight:700;padding:8px 20px;border:none;border-radius:50px;background:#4ecdc4;color:white;cursor:pointer;">שמור ✓</button>
+      <span id="admin-save-msg" style="display:none;font-size:0.78rem;color:#4ecdc4;font-weight:600;">✓ נשמר!</span>
+    </div>
+  </div>
+  <div class="card" style="margin-top:12px;">
+    <div class="sec-title">🔓 התנתקות</div>
+    <button onclick="adminLogout()" style="font-family:Heebo,sans-serif;font-size:0.85rem;font-weight:600;padding:8px 20px;border:2px solid #ff6b6b;border-radius:50px;background:white;color:#ff6b6b;cursor:pointer;">יציאה ממצב מנהל</button>
+  </div>
+</div>
+
+
 
 <nav class="bottom-nav">
   <button class="nav-btn active" id="nav-home" onclick="switchPage('home', this)">
@@ -451,6 +470,10 @@
     <span class="nav-icon">🕯️</span>
     <span>שישי</span>
   </button>
+  <button class="nav-btn" id="nav-admin" onclick="switchPage('admin', this)" style="display:none;">
+    <span class="nav-icon">🔒</span>
+    <span>שלי</span>
+  </button>
 </nav>
 
 
@@ -464,7 +487,7 @@ var COLORS  = {'תמר':'#ff6b6b','יאיר':'#4ecdc4','שירה':'#f7a440','ד�
 var SLUG    = {'תמר':'tamar','יאיר':'yair','שירה':'shira','דניאלה':'daniela'};
 var DAYS_HE = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 var HEB_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
-var START = new Date(2026,1,26), END = new Date(2026,9,1);
+var START = new Date(2026,1,26), END = new Date(2027,5,22);
 
 // Page subtitle
 (function(){
@@ -482,100 +505,62 @@ function pickLowest(cands,load,excl,prev){
 }
 function buildSchedule(){
   var days=getDays(), sch=[];
-  var SPLIT_B = new Date(2026,3,27);  // April 27 — מעבר ל-3 ילדים (ללא תמר)
-  var SPLIT_C = new Date(2026,7,30);  // Aug 30 — מעבר ל-3 ילדים (ללא יאיר)
+  var SPLIT_B = new Date(2026,7,31);  // Aug 31
 
-  // ── תקופה א: עד 27/4 — תמר/יאיר/שירה/דניאלה ──
-  var loadA={'תמר':0,'יאיר':0,'שירה':0,'דניאלה':0};
-  var prevA={trash:null,toilet:null,lucy:null,dish:null};
-  var tiA=0;
+  // ── תקופה א: עד 31/8 — תמר/יאיר/שירה/דניאלה ──
+  var KIDS_A=['תמר','יאיר','שירה','דניאלה'];
+  var loadA={lucy:{'תמר':0,'יאיר':0,'שירה':0,'דניאלה':0},
+             dish:{'תמר':0,'יאיר':0,'שירה':0,'דניאלה':0},
+             trash:{'תמר':0,'יאיר':0,'שירה':0,'דניאלה':0}};
+  var prevA={lucy:null,dish:null,trash:null};
 
-  // ── תקופה ב: 27/4–30/8 — יאיר/שירה/דניאלה ──
-  var KB=['יאיר','שירה','דניאלה'];
-  var loadB={lucy:{'יאיר':0,'שירה':0,'דניאלה':0},
-             dish:{'יאיר':0,'שירה':0,'דניאלה':0},
-             trash:{'יאיר':0,'שירה':0,'דניאלה':0},
-             toilet:{'יאיר':0,'שירה':0,'דניאלה':0}};
-  var prevB={trash:null,lucy:null,dish:null,t1:null,t2:null};
-  var tiB=0;
+  // ── תקופה ב: מ-31/8 — תמר/שירה/דניאלה (רוטציה קבועה) ──
+  var ROTA_B=[
+    {trash:'תמר',   lucy:'שירה',   dish:'דניאלה'},
+    {trash:'שירה',  lucy:'דניאלה', dish:'תמר'},
+    {trash:'דניאלה',lucy:'תמר',    dish:'שירה'}
+  ];
+  var TOILET_B=['תמר','דניאלה'];
+  var loadToilet={'תמר':0,'דניאלה':0};
+  var lastToiletWeek=-1;
+  var rotaIdxB=0;
 
-  // ── תקופה ג: מ-30/8 — תמר/שירה/דניאלה ──
-  var KC=['תמר','דניאלה','שירה'];
-  var loadC={lucy:{'תמר':0,'דניאלה':0,'שירה':0},
-             dish:{'תמר':0,'דניאלה':0,'שירה':0},
-             trash:{'תמר':0,'דניאלה':0,'שירה':0},
-             toilet:{'תמר':0,'דניאלה':0,'שירה':0}};
-  var prevC={trash:null,lucy:null,dish:null,t1:null,t2:null};
-  var tiC=0;
-
-  function pl(pool,load,excl,prev){
+  function plA(pool,load,excl,prev){
     var c=pool.filter(function(k){return excl.indexOf(k)===-1&&k!==prev;});
-    if(!c.length) c=pool.filter(function(k){return excl.indexOf(k)===-1;});
+    if(!c.length)c=pool.filter(function(k){return excl.indexOf(k)===-1;});
     return c.sort(function(a,b){return load[a]-load[b];})[0]||null;
   }
 
-  function period3(K,load,prev,ti){
-    var used=[],t1=null,t2=null,trash=null,lucy=null,dish=null;
-    if(ti%7===0){
-      t1=pl(K,load.toilet,[],prev.t1);
-      if(t1){load.toilet[t1]++;used.push(t1);}
-      t2=pl(K,load.toilet,used,prev.t2);
-      if(t2){load.toilet[t2]++;used.push(t2);}
-    }
-    var free=K.filter(function(k){return used.indexOf(k)===-1;});
-    if(free.length===3){
-      trash=pl(K,load.trash,used,prev.trash);
-      if(trash){load.trash[trash]++;used.push(trash);}
-      lucy=pl(K,load.lucy,used,prev.lucy);
-      if(lucy){load.lucy[lucy]++;used.push(lucy);}
-      dish=pl(K,load.dish,used,prev.dish);
-      if(dish)load.dish[dish]++;
-    } else if(free.length===1){
-      var kid=free[0];
-      var best=['lucy','dish','trash'].sort(function(a,b){return load[a][kid]-load[b][kid];})[0];
-      load[best][kid]++;
-      if(best==='trash')trash=kid; else if(best==='lucy')lucy=kid; else dish=kid;
-    }
-    return {trash:trash,lucy:lucy,dish:dish,t1:t1,t2:t2};
-  }
+  days.forEach(function(d,i){
+    var trash=null,lucy=null,dish=null,toilet1=null;
 
-  days.forEach(function(date,i){
-    var trash=null,toilet1=null,toilet2=null,lucy=null,dish=null;
-
-    if(date < SPLIT_B){
+    if(d < SPLIT_B){
       // ── תקופה א ──
-      var used=[], ALL=['תמר','יאיר','שירה','דניאלה'], TRASH_A=['יאיר','שירה'];
-      trash=pickLowest(TRASH_A,loadA,[],prevA.trash);
-      if(trash){loadA[trash]++;used.push(trash);}
-      if(tiA%7===0){
-        toilet1=pickLowest(ALL,loadA,used,prevA.toilet);
-        if(toilet1){loadA[toilet1]++;used.push(toilet1);}
-      }
-      lucy=pickLowest(ALL,loadA,used,prevA.lucy);
-      if(lucy){loadA[lucy]++;used.push(lucy);}
-      if(used.length<4){
-        dish=pickLowest(ALL,loadA,used,prevA.dish);
-        if(dish)loadA[dish]++;
-      }
-      tiA++;
-      prevA={trash:trash,toilet:toilet1,lucy:lucy,dish:dish};
-
-    } else if(date < SPLIT_C){
-      // ── תקופה ב ──
-      var r=period3(KB,loadB,prevB,tiB);
-      trash=r.trash; lucy=r.lucy; dish=r.dish; toilet1=r.t1; toilet2=r.t2;
-      prevB={trash:trash,lucy:lucy,dish:dish,t1:toilet1,t2:toilet2};
-      tiB++;
+      var used=[];
+      trash=plA(KIDS_A,loadA.trash,[],prevA.trash);
+      if(trash){loadA.trash[trash]++;used.push(trash);}
+      lucy=plA(KIDS_A,loadA.lucy,used,prevA.lucy);
+      if(lucy){loadA.lucy[lucy]++;used.push(lucy);}
+      dish=plA(KIDS_A,loadA.dish,used,prevA.dish);
+      if(dish)loadA.dish[dish]++;
+      prevA={trash:trash,lucy:lucy,dish:dish};
 
     } else {
-      // ── תקופה ג ──
-      var r=period3(KC,loadC,prevC,tiC);
-      trash=r.trash; lucy=r.lucy; dish=r.dish; toilet1=r.t1; toilet2=r.t2;
-      prevC={trash:trash,lucy:lucy,dish:dish,t1:toilet1,t2:toilet2};
-      tiC++;
+      // ── תקופה ב — רוטציה קבועה ──
+      var r=ROTA_B[rotaIdxB%3];
+      trash=r.trash; lucy=r.lucy; dish=r.dish;
+      rotaIdxB++;
+
+      // שירותים — תמר/דניאלה, חמישי(4) או שישי(5), פעם בשבוע
+      var weekNum=Math.floor((d-SPLIT_B)/(7*24*60*60*1000));
+      if((d.getDay()===4||d.getDay()===5)&&weekNum!==lastToiletWeek){
+        toilet1=loadToilet['תמר']<=loadToilet['דניאלה']?'תמר':'דניאלה';
+        loadToilet[toilet1]++;
+        lastToiletWeek=weekNum;
+      }
     }
 
-    sch.push({date:date,lucy:lucy,dish:dish,trash:trash,toilet1:toilet1,toilet2:toilet2});
+    sch.push({date:d,lucy:lucy,dish:dish,trash:trash,toilet1:toilet1,toilet2:null});
   });
   return sch;
 }
@@ -744,11 +729,12 @@ document.getElementById('chores-card').addEventListener('click', function(){
 
 // ═══ SHOPPING ═══
 var CAT_META={
-  'סופר':        {icon:'🛒',color:'#45b7d1'},
-  'ירקות ופירות':{icon:'🥦',color:'#4ecdc4'},
-  'קצבייה':      {icon:'🥩',color:'#f7a440'},
-  'פארם':        {icon:'💊',color:'#e17055'},
-  'אחר':         {icon:'🏷️',color:'#a55eea'}
+  'סופר':         {icon:'🛒',color:'#45b7d1'},
+  'ירקות ופירות': {icon:'🥦',color:'#4ecdc4'},
+  'קצבייה':       {icon:'🥩',color:'#f7a440'},
+  'מעדנייה':      {icon:'🧀',color:'#fdcb6e'},
+  'פארם':         {icon:'💊',color:'#e17055'},
+  'אחר':          {icon:'🏷️',color:'#a55eea'}
 };
 var selectedCat='סופר', shopItems=[];
 
@@ -810,6 +796,7 @@ function renderShopGrid(){
         return '<div class="shop-item'+dC+'" data-id="'+item.id+'">'+
           '<div class="item-check" data-id="'+item.id+'">'+chk+'</div>'+
           '<span class="item-name" data-id="'+item.id+'">'+item.name+'</span>'+qH+
+          '<button class="item-move" data-id="'+item.id+'" title="העבר קטגוריה">⇄</button>'+
           '<button class="item-edit" data-id="'+item.id+'" title="ערוך">✎</button>'+
           '<button class="item-del" data-id="'+item.id+'">✕</button></div>';
       }).join('');
@@ -885,15 +872,18 @@ function autoCategory(name) {
 
   // בדיקות ספציפיות לפני הכלליות
   if(n.includes('צ׳ילי') || n.includes('צילי') || n.includes("צ'ילי") || n.includes('פלפל חריף')) return 'ירקות ופירות';
+  if(n.includes('מלפפון') || n.includes('מלפפוני')) return 'ירקות ופירות';
+  if(n.includes('עגבני') || n.includes('שרי')) return 'ירקות ופירות';
+  if(n.includes('אבוקדו')) return 'ירקות ופירות';
 
   var veggies = [
     // פירות
-    'תפוח','אוכמניות','בננה','תפוז','לימון','ענב','אבטיח','מלון','תות','אפרסק','שזיף','אגס',
+    'תפוח','אוכמניות','אבוקדו','בננה','תפוז','לימון','ענב','אבטיח','מלון','תות','אפרסק','שזיף','אגס',
     'קלמנטינה','מנדרינה','מנגו','אננס','דובדבן','רימון','תאנה','פפאיה','קיווי',
     'משמש','נקטרינה','פסיפלורה','ליצ׳י','גויאבה','קוקוס','אבוקדו','צבר','תמר',
     'שסק','פלפל אדום','פלפל צהוב','פלפל ירוק','תמרינד','פירות','פרי',
     // ירקות
-    'עגבני','מלפפון','גזר','פלפל','חסה','כרוב','ברוקולי','כרובית','תרד','קישוא',
+    'עגבני','עגבניות שרי','שרי','מלפפון','מלפפונים','מלפפוניות','גזר','פלפל','חסה','כרוב','ברוקולי','כרובית','תרד','קישוא',
     'דלעת','בצל','שום','פטריה','אספרגוס','סלרי','שמיר','נענע','פטרוזיליה',
     'כוסברה','בזיליקום','עירית','רוקט','בטטה','תפוח אדמה','תפו״א','לפת','סלק',
     'ארטישוק','אפונה','שעועית','עדשים','חציל','כרישה','פנל','צנון','מולי',
@@ -1474,6 +1464,63 @@ function startFirebaseSync() {
   });
 } // end startFirebaseSync
 
+
+// ── ADMIN PIN ──
+var ADMIN_PIN = '2703';
+var adminUnlocked = false;
+var tapCount = 0, tapTimer = null;
+
+function checkAdminSession(){
+  try{
+    if(sessionStorage.getItem('admin_ok')==='1'){
+      adminUnlocked=true; showAdminNav();
+    }
+  }catch(e){}
+}
+function showAdminNav(){
+  var b=document.getElementById('nav-admin');
+  if(b) b.style.display='';
+}
+function adminLogout(){
+  adminUnlocked=false;
+  try{sessionStorage.removeItem('admin_ok');}catch(e){}
+  var b=document.getElementById('nav-admin');
+  if(b) b.style.display='none';
+  switchPage('home', document.getElementById('nav-home'));
+}
+function loadAdminNotes(){
+  try{
+    var s=localStorage.getItem('admin_notes');
+    var el=document.getElementById('admin-notes');
+    if(el) el.value=s||'';
+  }catch(e){}
+}
+function saveAdminNotes(){
+  try{
+    var el=document.getElementById('admin-notes');
+    localStorage.setItem('admin_notes', el?el.value:'');
+    var m=document.getElementById('admin-save-msg');
+    if(m){m.style.display='inline';setTimeout(function(){m.style.display='none';},2000);}
+  }catch(e){}
+}
+// 5 taps on H1 to open PIN
+document.querySelector('h1').addEventListener('click',function(){
+  if(adminUnlocked) return;
+  tapCount++;
+  clearTimeout(tapTimer);
+  tapTimer=setTimeout(function(){tapCount=0;},1500);
+  if(tapCount>=5){
+    tapCount=0;
+    var pin=prompt('קוד:');
+    if(pin===ADMIN_PIN){
+      adminUnlocked=true;
+      try{sessionStorage.setItem('admin_ok','1');}catch(e){}
+      showAdminNav();
+      loadAdminNotes();
+    }
+  }
+});
+checkAdminSession();
 
 // Generate app icon as PNG
 (function(){
