@@ -225,6 +225,11 @@
   .item-qty { font-size: 0.7rem; color: var(--muted); background: #f5f5f5; padding: 1px 6px; border-radius: 50px; }
   .item-del  { width: 20px; height: 20px; border: none; background: none; color: #ccc; font-size: 0.78rem; cursor: pointer; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
   .item-del:hover  { background: #ffe0e0; color: #ff6b6b; }
+  .item-move { width: 22px; height: 22px; border: none; background: none; color: #b2bec3; font-size: 0.9rem; cursor: grab; border-radius: 50%; display: flex; align-items: center; justify-content: center; touch-action: none; flex-shrink: 0; }
+  .item-move:active { cursor: grabbing; background: #eaf9f7; color: #4ecdc4; }
+  .shop-item.dragging { opacity: 0.35; }
+  .shop-col.drag-over { background: #eaf9f7; outline: 2px dashed #4ecdc4; outline-offset: -2px; border-radius: 12px; }
+  .drag-ghost { position: fixed; pointer-events: none; z-index: 9999; background: white; border: 2px solid #4ecdc4; border-radius: 10px; padding: 6px 14px; font-family: 'Heebo', sans-serif; font-size: 0.82rem; font-weight: 700; box-shadow: 0 6px 20px rgba(0,0,0,.2); transform: translate(-50%, -50%); white-space: nowrap; }
   .item-edit { width: 20px; height: 20px; border: none; background: none; color: #b2bec3; font-size: 0.85rem; cursor: pointer; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
   .item-edit:hover { background: #e8f4ff; color: #45b7d1; }
   .shop-item.editing { background: #f0faff; border-color: #45b7d1; }
@@ -314,6 +319,9 @@
 <div class="page active" id="page-home">
 <h1>🏠 מטלות הבית</h1>
 <p class="subtitle" id="page-subtitle"></p>
+<div style="text-align:center;margin-bottom:8px;">
+  <button id="admin-lock-btn" onclick="openAdminPin()" style="background:none;border:none;font-size:1rem;color:#d8dbe0;cursor:pointer;padding:6px;">🔒</button>
+</div>
 <!-- ═══ CHORES CARD ═══ -->
 <div class="summary-card open" id="chores-card">
   <div class="card-icon">📋</div>
@@ -440,22 +448,26 @@
 <!-- ADMIN PAGE -->
 <div class="page" id="page-admin">
   <h1 style="color:#636e72;">🔒 האזור שלי</h1>
-  <p class="subtitle">רשימות ומשימות אישיות</p>
+  <p class="subtitle">משימות לטיפול לפי שם</p>
   <div class="card">
-    <div class="sec-title">📝 הערות ומשימות</div>
-    <textarea id="admin-notes" placeholder="כתבי כאן הערות, משימות, רשימות..." style="width:100%;min-height:220px;font-family:Heebo,sans-serif;font-size:0.9rem;border:2px solid #f0f0f0;border-radius:12px;padding:12px;outline:none;resize:vertical;direction:rtl;line-height:1.6;"></textarea>
-    <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
-      <button onclick="saveAdminNotes()" style="font-family:Heebo,sans-serif;font-size:0.85rem;font-weight:700;padding:8px 20px;border:none;border-radius:50px;background:#4ecdc4;color:white;cursor:pointer;">שמור ✓</button>
-      <span id="admin-save-msg" style="display:none;font-size:0.78rem;color:#4ecdc4;font-weight:600;">✓ נשמר!</span>
+    <div class="child-row" id="admin-tab-row">
+      <button class="cbtn cbtn-tamar"   data-p="תמר"    onclick="setAdminTab(this)">תמר</button>
+      <button class="cbtn cbtn-yair"    data-p="יאיר"   onclick="setAdminTab(this)">יאיר</button>
+      <button class="cbtn cbtn-shira"   data-p="שירה"   onclick="setAdminTab(this)">שירה</button>
+      <button class="cbtn cbtn-daniela" data-p="דניאלה" onclick="setAdminTab(this)">דניאלה</button>
+      <button class="cbtn" style="border-color:#636e72;color:#636e72;" data-p="אני" onclick="setAdminTab(this)">אני 🙋‍♀️</button>
     </div>
+    <div style="display:flex;gap:8px;margin-top:6px;">
+      <input type="text" id="admin-task-input" placeholder="הוסיפי משימה..." style="flex:1;font-family:Heebo,sans-serif;font-size:0.88rem;padding:9px 12px;border:2px solid #e0e0e0;border-radius:11px;outline:none;" />
+      <button onclick="addAdminTask()" style="width:42px;height:42px;border:none;border-radius:11px;background:#636e72;color:white;font-size:1.3rem;font-weight:700;cursor:pointer;flex-shrink:0;">+</button>
+    </div>
+    <div id="admin-task-list" style="margin-top:12px;display:flex;flex-direction:column;gap:6px;"></div>
   </div>
   <div class="card" style="margin-top:12px;">
     <div class="sec-title">🔓 התנתקות</div>
     <button onclick="adminLogout()" style="font-family:Heebo,sans-serif;font-size:0.85rem;font-weight:600;padding:8px 20px;border:2px solid #ff6b6b;border-radius:50px;background:white;color:#ff6b6b;cursor:pointer;">יציאה ממצב מנהל</button>
   </div>
 </div>
-
-
 
 <nav class="bottom-nav">
   <button class="nav-btn active" id="nav-home" onclick="switchPage('home', this)">
@@ -796,12 +808,12 @@ function renderShopGrid(){
         return '<div class="shop-item'+dC+'" data-id="'+item.id+'">'+
           '<div class="item-check" data-id="'+item.id+'">'+chk+'</div>'+
           '<span class="item-name" data-id="'+item.id+'">'+item.name+'</span>'+qH+
-          '<button class="item-move" data-id="'+item.id+'" title="העבר קטגוריה">⇄</button>'+
+          '<button class="item-move" data-id="'+item.id+'" title="גררי לקטגוריה אחרת">⇄</button>'+
           '<button class="item-edit" data-id="'+item.id+'" title="ערוך">✎</button>'+
           '<button class="item-del" data-id="'+item.id+'">✕</button></div>';
       }).join('');
     var cH=pending>0?'<span class="shop-col-count">'+pending+'</span>':'';
-    html+='<div class="shop-col">'+
+    html+='<div class="shop-col" data-cat="'+cat+'">'+
       '<div class="shop-col-header"><span class="shop-col-icon">'+meta.icon+'</span>'+
       '<span class="shop-col-title" style="color:'+meta.color+'">'+cat+'</span>'+cH+'</div>'+
       '<div class="shop-items-list">'+iHtml+'</div></div>';
@@ -864,6 +876,74 @@ document.getElementById('shop-grid').addEventListener('click', function(e){
 });
 
 
+
+// ═══ DRAG & DROP (move items between categories) ═══
+(function(){
+  var dragItemId = null;
+  var ghost = null;
+  var lastCol = null;
+
+  function findItemRow(el){ return el.closest('.shop-item'); }
+  function findCol(x, y){
+    var el = document.elementFromPoint(x, y);
+    return el ? el.closest('.shop-col') : null;
+  }
+
+  document.getElementById('shop-grid').addEventListener('pointerdown', function(e){
+    var handle = e.target.closest('.item-move');
+    if(!handle) return;
+    e.preventDefault();
+    var row = findItemRow(handle);
+    if(!row) return;
+    dragItemId = parseInt(row.dataset.id);
+    row.classList.add('dragging');
+
+    ghost = document.createElement('div');
+    ghost.className = 'drag-ghost';
+    var nameEl = row.querySelector('.item-name');
+    ghost.textContent = '📦 ' + (nameEl ? nameEl.textContent : '');
+    document.body.appendChild(ghost);
+    moveGhost(e.clientX, e.clientY);
+
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp, { once:true });
+  });
+
+  function moveGhost(x, y){
+    if(ghost){ ghost.style.left = x + 'px'; ghost.style.top = y + 'px'; }
+  }
+
+  function onMove(e){
+    if(dragItemId === null) return;
+    moveGhost(e.clientX, e.clientY);
+    var col = findCol(e.clientX, e.clientY);
+    if(col !== lastCol){
+      if(lastCol) lastCol.classList.remove('drag-over');
+      if(col) col.classList.add('drag-over');
+      lastCol = col;
+    }
+  }
+
+  function onUp(e){
+    document.removeEventListener('pointermove', onMove);
+    document.querySelectorAll('.shop-item.dragging').forEach(function(r){ r.classList.remove('dragging'); });
+    if(lastCol) lastCol.classList.remove('drag-over');
+    if(ghost){ ghost.remove(); ghost=null; }
+
+    var col = findCol(e.clientX, e.clientY);
+    if(col && dragItemId !== null){
+      var newCat = col.dataset.cat;
+      var item = shopItems.find(function(x){ return x.id === dragItemId; });
+      if(item && newCat && item.cat !== newCat){
+        item.cat = newCat;
+        saveShop();
+        renderShopGrid();
+      }
+    }
+    dragItemId = null;
+    lastCol = null;
+  }
+})();
 
 // Add item button
 // ═══ AUTO CATEGORIZATION ═══
@@ -1462,6 +1542,14 @@ function startFirebaseSync() {
     renderPoll();
     renderFridayTasks();
   });
+  // ── ADMIN TASKS ──
+  db.ref('admin_tasks').on('value', function(snap){
+    var data=snap.val(); if(!data) return;
+    adminTasks=data;
+    ADMIN_PEOPLE.forEach(function(p){ if(!adminTasks[p]) adminTasks[p]=[]; });
+    try{ localStorage.setItem('admin_tasks_v1', JSON.stringify(adminTasks)); }catch(e){}
+    if(document.getElementById('page-admin') && document.getElementById('page-admin').classList.contains('active')) renderAdminTasks();
+  });
 } // end startFirebaseSync
 
 
@@ -1488,21 +1576,85 @@ function adminLogout(){
   if(b) b.style.display='none';
   switchPage('home', document.getElementById('nav-home'));
 }
-function loadAdminNotes(){
+var ADMIN_PEOPLE=['תמר','יאיר','שירה','דניאלה','אני'];
+var adminTasks={}; // {person: [{id,text,done}]}
+var adminActiveTab='תמר';
+
+function loadAdminTasks(){
   try{
-    var s=localStorage.getItem('admin_notes');
-    var el=document.getElementById('admin-notes');
-    if(el) el.value=s||'';
-  }catch(e){}
+    var s=localStorage.getItem('admin_tasks_v1');
+    adminTasks = s?JSON.parse(s):{};
+  }catch(e){ adminTasks={}; }
+  ADMIN_PEOPLE.forEach(function(p){ if(!adminTasks[p]) adminTasks[p]=[]; });
+  // Highlight current active tab button
+  var slugMap={'תמר':'tamar','יאיר':'yair','שירה':'shira','דניאלה':'daniela'};
+  document.querySelectorAll('#admin-tab-row .cbtn').forEach(function(b){
+    var p=b.dataset.p, slug=slugMap[p];
+    if(slug) b.className='cbtn cbtn-'+slug+(p===adminActiveTab?' act-'+slug:'');
+    else { b.style.background = p===adminActiveTab?'#636e72':'white'; b.style.color = p===adminActiveTab?'white':'#636e72'; }
+  });
+  renderAdminTasks();
 }
-function saveAdminNotes(){
-  try{
-    var el=document.getElementById('admin-notes');
-    localStorage.setItem('admin_notes', el?el.value:'');
-    var m=document.getElementById('admin-save-msg');
-    if(m){m.style.display='inline';setTimeout(function(){m.style.display='none';},2000);}
-  }catch(e){}
+function saveAdminTasks(){
+  try{ localStorage.setItem('admin_tasks_v1', JSON.stringify(adminTasks)); }catch(e){}
+  try{ if(db) db.ref('admin_tasks').set(adminTasks); }catch(e){}
 }
+function setAdminTab(btn){
+  adminActiveTab = btn.dataset.p;
+  document.querySelectorAll('#admin-tab-row .cbtn').forEach(function(b){
+    var slug = {'תמר':'tamar','יאיר':'yair','שירה':'shira','דניאלה':'daniela'}[b.dataset.p];
+    b.removeAttribute('data-active');
+    if(slug) b.className='cbtn cbtn-'+slug;
+    else b.style.background='white';
+  });
+  var slug = {'תמר':'tamar','יאיר':'yair','שירה':'shira','דניאלה':'daniela'}[adminActiveTab];
+  if(slug){ btn.classList.add('act-'+slug); }
+  else { btn.style.background='#636e72'; btn.style.color='white'; }
+  renderAdminTasks();
+}
+function renderAdminTasks(){
+  var list=document.getElementById('admin-task-list'); if(!list) return;
+  var tasks=adminTasks[adminActiveTab]||[];
+  if(tasks.length===0){
+    list.innerHTML='<div style="color:#b2bec3;font-size:0.82rem;text-align:center;padding:12px 0;">אין משימות ל'+adminActiveTab+' — הוסיפי למעלה 👆</div>';
+    return;
+  }
+  list.innerHTML=tasks.map(function(t){
+    var dc=t.done?' style="opacity:0.45;"':'';
+    var chk=t.done?'✓':'';
+    var textStyle=t.done?'text-decoration:line-through;':'';
+    return '<div class="ftask" data-id="'+t.id+'"'+dc+'>'
+      +'<div class="ftcheck" data-id="'+t.id+'">'+chk+'</div>'
+      +'<span class="ftlabel" style="'+textStyle+'">'+t.text+'</span>'
+      +'<button class="item-del" data-id="'+t.id+'" style="font-size:0.9rem;">✕</button>'
+      +'</div>';
+  }).join('');
+}
+function addAdminTask(){
+  var inp=document.getElementById('admin-task-input');
+  var val=inp.value.trim(); if(!val) return;
+  if(!adminTasks[adminActiveTab]) adminTasks[adminActiveTab]=[];
+  adminTasks[adminActiveTab].push({id:Date.now(), text:val, done:false});
+  saveAdminTasks(); renderAdminTasks();
+  inp.value=''; inp.focus();
+}
+document.getElementById('admin-task-input').addEventListener('keydown',function(e){
+  if(e.key==='Enter') addAdminTask();
+});
+document.getElementById('admin-task-list').addEventListener('click',function(e){
+  var chk=e.target.closest('.ftcheck');
+  var del=e.target.closest('.item-del');
+  if(chk){
+    var id=+chk.dataset.id;
+    var t=(adminTasks[adminActiveTab]||[]).find(function(x){return x.id===id;});
+    if(t){ t.done=!t.done; saveAdminTasks(); renderAdminTasks(); }
+  }
+  if(del){
+    var id=+del.dataset.id;
+    adminTasks[adminActiveTab]=(adminTasks[adminActiveTab]||[]).filter(function(x){return x.id!==id;});
+    saveAdminTasks(); renderAdminTasks();
+  }
+});
 // 5 taps on H1 to open PIN
 document.querySelector('h1').addEventListener('click',function(){
   if(adminUnlocked) return;
