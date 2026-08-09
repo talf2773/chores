@@ -450,22 +450,25 @@
   <h1 style="color:#636e72;">🔒 האזור שלי</h1>
   <p class="subtitle">משימות לטיפול לפי שם</p>
   <div class="card">
-    <div class="child-row" id="admin-tab-row">
-      <button class="cbtn cbtn-tamar"   data-p="תמר"    onclick="setAdminTab(this)">תמר</button>
-      <button class="cbtn cbtn-yair"    data-p="יאיר"   onclick="setAdminTab(this)">יאיר</button>
-      <button class="cbtn cbtn-shira"   data-p="שירה"   onclick="setAdminTab(this)">שירה</button>
-      <button class="cbtn cbtn-daniela" data-p="דניאלה" onclick="setAdminTab(this)">דניאלה</button>
-      <button class="cbtn" style="border-color:#636e72;color:#636e72;" data-p="אני" onclick="setAdminTab(this)">אני 🙋‍♀️</button>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:6px;">
-      <input type="text" id="admin-task-input" placeholder="הוסיפי משימה..." style="flex:1;font-family:Heebo,sans-serif;font-size:0.88rem;padding:9px 12px;border:2px solid #e0e0e0;border-radius:11px;outline:none;" />
-      <button onclick="addAdminTask()" style="width:42px;height:42px;border:none;border-radius:11px;background:#636e72;color:white;font-size:1.3rem;font-weight:700;cursor:pointer;flex-shrink:0;">+</button>
-    </div>
-    <div id="admin-task-list" style="margin-top:12px;display:flex;flex-direction:column;gap:6px;"></div>
+    <div id="admin-task-grid" class="shop-grid"></div>
   </div>
   <div class="card" style="margin-top:12px;">
     <div class="sec-title">🔓 התנתקות</div>
     <button onclick="adminLogout()" style="font-family:Heebo,sans-serif;font-size:0.85rem;font-weight:600;padding:8px 20px;border:2px solid #ff6b6b;border-radius:50px;background:white;color:#ff6b6b;cursor:pointer;">יציאה ממצב מנהל</button>
+  </div>
+</div>
+
+<!-- ADMIN PIN MODAL -->
+<div id="admin-pin-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:20px;padding:24px 22px;width:85%;max-width:300px;text-align:center;">
+    <div style="font-size:1.8rem;margin-bottom:10px;">🔒</div>
+    <div style="font-family:Rubik,sans-serif;font-weight:800;font-size:1rem;margin-bottom:14px;">הזיני קוד</div>
+    <input id="admin-pin-input" type="tel" inputmode="numeric" maxlength="4" placeholder="••••" style="width:100%;text-align:center;font-size:1.5rem;letter-spacing:8px;padding:10px;border:2px solid #e0e0e0;border-radius:12px;outline:none;font-family:Heebo,sans-serif;" />
+    <div id="admin-pin-error" style="display:none;color:#ff6b6b;font-size:0.78rem;margin-top:8px;">קוד שגוי</div>
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button onclick="closeAdminPinModal()" style="flex:1;font-family:Heebo,sans-serif;font-weight:600;font-size:0.85rem;padding:9px;border:2px solid #e0e0e0;border-radius:50px;background:white;color:#636e72;cursor:pointer;">ביטול</button>
+      <button onclick="submitAdminPin()" style="flex:1;font-family:Heebo,sans-serif;font-weight:700;font-size:0.85rem;padding:9px;border:none;border-radius:50px;background:#4ecdc4;color:white;cursor:pointer;">אישור</button>
+    </div>
   </div>
 </div>
 
@@ -1459,6 +1462,7 @@ function switchPage(name, btn) {
     renderPoll();
     renderFridayTasks();
   }
+  if(name==='admin') { renderAdminGrid(); }
 }
 
 loadShop();
@@ -1576,9 +1580,10 @@ function adminLogout(){
   if(b) b.style.display='none';
   switchPage('home', document.getElementById('nav-home'));
 }
-var ADMIN_PEOPLE=['תמר','יאיר','שירה','דניאלה','אני'];
+var ADMIN_PEOPLE=['תמר','יאיר','שירה','דניאלה','אני','כללי'];
+var ADMIN_COLORS={'תמר':'#ff6b6b','יאיר':'#4ecdc4','שירה':'#f7a440','דניאלה':'#a55eea','אני':'#636e72','כללי':'#00b894'};
+var ADMIN_ICONS={'תמר':'👧','יאיר':'👦','שירה':'👧','דניאלה':'👧','אני':'🙋‍♀️','כללי':'📌'};
 var adminTasks={}; // {person: [{id,text,done}]}
-var adminActiveTab='תמר';
 
 function loadAdminTasks(){
   try{
@@ -1586,91 +1591,120 @@ function loadAdminTasks(){
     adminTasks = s?JSON.parse(s):{};
   }catch(e){ adminTasks={}; }
   ADMIN_PEOPLE.forEach(function(p){ if(!adminTasks[p]) adminTasks[p]=[]; });
-  // Highlight current active tab button
-  var slugMap={'תמר':'tamar','יאיר':'yair','שירה':'shira','דניאלה':'daniela'};
-  document.querySelectorAll('#admin-tab-row .cbtn').forEach(function(b){
-    var p=b.dataset.p, slug=slugMap[p];
-    if(slug) b.className='cbtn cbtn-'+slug+(p===adminActiveTab?' act-'+slug:'');
-    else { b.style.background = p===adminActiveTab?'#636e72':'white'; b.style.color = p===adminActiveTab?'white':'#636e72'; }
-  });
-  renderAdminTasks();
+  renderAdminGrid();
 }
 function saveAdminTasks(){
   try{ localStorage.setItem('admin_tasks_v1', JSON.stringify(adminTasks)); }catch(e){}
   try{ if(db) db.ref('admin_tasks').set(adminTasks); }catch(e){}
 }
-function setAdminTab(btn){
-  adminActiveTab = btn.dataset.p;
-  document.querySelectorAll('#admin-tab-row .cbtn').forEach(function(b){
-    var slug = {'תמר':'tamar','יאיר':'yair','שירה':'shira','דניאלה':'daniela'}[b.dataset.p];
-    b.removeAttribute('data-active');
-    if(slug) b.className='cbtn cbtn-'+slug;
-    else b.style.background='white';
-  });
-  var slug = {'תמר':'tamar','יאיר':'yair','שירה':'shira','דניאלה':'daniela'}[adminActiveTab];
-  if(slug){ btn.classList.add('act-'+slug); }
-  else { btn.style.background='#636e72'; btn.style.color='white'; }
-  renderAdminTasks();
-}
-function renderAdminTasks(){
-  var list=document.getElementById('admin-task-list'); if(!list) return;
-  var tasks=adminTasks[adminActiveTab]||[];
-  if(tasks.length===0){
-    list.innerHTML='<div style="color:#b2bec3;font-size:0.82rem;text-align:center;padding:12px 0;">אין משימות ל'+adminActiveTab+' — הוסיפי למעלה 👆</div>';
-    return;
-  }
-  list.innerHTML=tasks.map(function(t){
-    var dc=t.done?' style="opacity:0.45;"':'';
-    var chk=t.done?'✓':'';
-    var textStyle=t.done?'text-decoration:line-through;':'';
-    return '<div class="ftask" data-id="'+t.id+'"'+dc+'>'
-      +'<div class="ftcheck" data-id="'+t.id+'">'+chk+'</div>'
-      +'<span class="ftlabel" style="'+textStyle+'">'+t.text+'</span>'
-      +'<button class="item-del" data-id="'+t.id+'" style="font-size:0.9rem;">✕</button>'
+function renderAdminGrid(){
+  var grid=document.getElementById('admin-task-grid'); if(!grid) return;
+  grid.innerHTML = ADMIN_PEOPLE.map(function(person){
+    var color = ADMIN_COLORS[person] || '#636e72';
+    var icon = ADMIN_ICONS[person] || '📌';
+    var tasks = adminTasks[person] || [];
+    var pending = tasks.filter(function(t){ return !t.done; }).length;
+    var itemsHtml = tasks.length===0
+      ? '<div class="shop-col-empty">ריק</div>'
+      : tasks.map(function(t){
+          var dC = t.done ? ' done' : '';
+          var chk = t.done ? '✓' : '';
+          return '<div class="shop-item'+dC+'" data-id="'+t.id+'" data-person="'+person+'">'
+            +'<div class="item-check" data-id="'+t.id+'" data-person="'+person+'">'+chk+'</div>'
+            +'<span class="item-name">'+t.text+'</span>'
+            +'<button class="item-del" data-id="'+t.id+'" data-person="'+person+'">✕</button>'
+            +'</div>';
+        }).join('');
+    return '<div class="shop-col">'
+      +'<div class="shop-col-header"><span class="shop-col-icon">'+icon+'</span>'
+      +'<span class="shop-col-title" style="color:'+color+'">'+person+'</span>'
+      +(pending?'<span class="shop-col-count">'+pending+'</span>':'')+'</div>'
+      +'<div class="shop-items-list">'+itemsHtml+'</div>'
+      +'<div style="display:flex;gap:6px;margin-top:8px;">'
+        +'<input type="text" class="admin-add-input" data-person="'+person+'" placeholder="הוסיפי..." style="flex:1;font-family:Heebo,sans-serif;font-size:0.78rem;padding:6px 9px;border:1.5px solid #e0e0e0;border-radius:9px;outline:none;min-width:0;" />'
+        +'<button class="admin-add-btn" data-person="'+person+'" style="width:28px;height:28px;border:none;border-radius:9px;background:'+color+';color:white;font-size:1rem;font-weight:700;cursor:pointer;flex-shrink:0;">+</button>'
+      +'</div>'
       +'</div>';
   }).join('');
 }
-function addAdminTask(){
-  var inp=document.getElementById('admin-task-input');
-  var val=inp.value.trim(); if(!val) return;
-  if(!adminTasks[adminActiveTab]) adminTasks[adminActiveTab]=[];
-  adminTasks[adminActiveTab].push({id:Date.now(), text:val, done:false});
-  saveAdminTasks(); renderAdminTasks();
-  inp.value=''; inp.focus();
+function addAdminTaskFor(person, value){
+  var val=(value||'').trim(); if(!val) return;
+  if(!adminTasks[person]) adminTasks[person]=[];
+  adminTasks[person].push({id:Date.now(), text:val, done:false});
+  saveAdminTasks(); renderAdminGrid();
 }
-document.getElementById('admin-task-input').addEventListener('keydown',function(e){
-  if(e.key==='Enter') addAdminTask();
-});
-document.getElementById('admin-task-list').addEventListener('click',function(e){
-  var chk=e.target.closest('.ftcheck');
+
+document.getElementById('admin-task-grid').addEventListener('click', function(e){
+  var addBtn=e.target.closest('.admin-add-btn');
+  var chk=e.target.closest('.item-check');
   var del=e.target.closest('.item-del');
+  if(addBtn){
+    var person=addBtn.dataset.person;
+    var input=addBtn.parentElement.querySelector('.admin-add-input');
+    addAdminTaskFor(person, input.value);
+    input.value=''; input.focus();
+  }
   if(chk){
-    var id=+chk.dataset.id;
-    var t=(adminTasks[adminActiveTab]||[]).find(function(x){return x.id===id;});
-    if(t){ t.done=!t.done; saveAdminTasks(); renderAdminTasks(); }
+    var id=+chk.dataset.id, person=chk.dataset.person;
+    var t=(adminTasks[person]||[]).find(function(x){return x.id===id;});
+    if(t){ t.done=!t.done; saveAdminTasks(); renderAdminGrid(); }
   }
   if(del){
-    var id=+del.dataset.id;
-    adminTasks[adminActiveTab]=(adminTasks[adminActiveTab]||[]).filter(function(x){return x.id!==id;});
-    saveAdminTasks(); renderAdminTasks();
+    var id=+del.dataset.id, person=del.dataset.person;
+    adminTasks[person]=(adminTasks[person]||[]).filter(function(x){return x.id!==id;});
+    saveAdminTasks(); renderAdminGrid();
   }
 });
-// 5 taps on H1 to open PIN
-document.querySelector('h1').addEventListener('click',function(){
-  if(adminUnlocked) return;
-  tapCount++;
-  clearTimeout(tapTimer);
-  tapTimer=setTimeout(function(){tapCount=0;},1500);
-  if(tapCount>=5){
-    tapCount=0;
-    var pin=prompt('קוד:');
-    if(pin===ADMIN_PIN){
-      adminUnlocked=true;
-      try{sessionStorage.setItem('admin_ok','1');}catch(e){}
-      showAdminNav();
-      loadAdminNotes();
-    }
+document.getElementById('admin-task-grid').addEventListener('keydown', function(e){
+  if(e.key==='Enter' && e.target.classList.contains('admin-add-input')){
+    var person=e.target.dataset.person;
+    addAdminTaskFor(person, e.target.value);
+    e.target.value='';
   }
+});
+
+// 5 taps on H1 to open PIN
+function openAdminPin(){
+  if(adminUnlocked){
+    switchPage('admin', document.getElementById('nav-admin'));
+    document.querySelectorAll('.nav-btn').forEach(function(b){b.classList.remove('active');});
+    document.getElementById('nav-admin').classList.add('active');
+    return;
+  }
+  var overlay=document.getElementById('admin-pin-overlay');
+  var input=document.getElementById('admin-pin-input');
+  var err=document.getElementById('admin-pin-error');
+  if(overlay){
+    overlay.style.display='flex';
+    err.style.display='none';
+    input.value='';
+    setTimeout(function(){ input.focus(); }, 100);
+  }
+}
+function closeAdminPinModal(){
+  var overlay=document.getElementById('admin-pin-overlay');
+  if(overlay) overlay.style.display='none';
+}
+function submitAdminPin(){
+  var input=document.getElementById('admin-pin-input');
+  var err=document.getElementById('admin-pin-error');
+  var pin=input?input.value.trim():'';
+  if(pin===ADMIN_PIN){
+    adminUnlocked=true;
+    try{sessionStorage.setItem('admin_ok','1');}catch(e){}
+    closeAdminPinModal();
+    showAdminNav();
+    loadAdminTasks();
+    switchPage('admin', document.getElementById('nav-admin'));
+    document.querySelectorAll('.nav-btn').forEach(function(b){b.classList.remove('active');});
+    document.getElementById('nav-admin').classList.add('active');
+  } else {
+    if(err) err.style.display='block';
+    if(input){ input.value=''; input.focus(); }
+  }
+}
+document.getElementById('admin-pin-input').addEventListener('keydown', function(e){
+  if(e.key==='Enter') submitAdminPin();
 });
 checkAdminSession();
 
