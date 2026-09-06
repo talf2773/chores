@@ -346,17 +346,6 @@
   <div class="task-grid" id="tomorrow-cards"></div>
 
 
-  <div class="section-divider"></div>
-
-  <!-- לוח שנה מלא -->
-  <div class="day-section-title">🗓️ לוח שנה מלא — לפי ילד</div>
-  <div class="child-row" id="cal-child-row">
-    <button class="child-btn child-btn-tamar"   data-name="תמר"    data-slug="tamar">תמר</button>
-    <button class="child-btn child-btn-yair"    data-name="יאיר"   data-slug="yair">יאיר</button>
-    <button class="child-btn child-btn-shira"   data-name="שירה"   data-slug="shira">שירה</button>
-    <button class="child-btn child-btn-daniela" data-name="דניאלה" data-slug="daniela">דניאלה</button>
-  </div>
-  <div id="cal-child-detail"></div>
 
 </div>
 </div>
@@ -520,7 +509,7 @@ function pickLowest(cands,load,excl,prev){
 }
 function buildSchedule(){
   var days=getDays(), sch=[];
-  var SPLIT_B = new Date(2026,7,31);  // Aug 31
+  var SPLIT_B = new Date(2026,7,29);  // Aug 29 — מעתה, ללא יאיר
 
   // ── תקופה א: עד 31/8 — תמר/יאיר/שירה/דניאלה ──
   var KIDS_A=['תמר','יאיר','שירה','דניאלה'];
@@ -676,51 +665,6 @@ function initChoresPage() {
   buildDayCards(todayData, 'today-cards', 'today-date-label');
   buildDayCards(tomorrowData, 'tomorrow-cards', 'tomorrow-date-label');
 })();
-
-// ═══ CALENDAR CHILD VIEW ═══
-document.getElementById('cal-child-row').addEventListener('click', function(e){
-  var btn=e.target.closest('.child-btn');
-  if(!btn) return;
-  var detail=document.getElementById('cal-child-detail');
-  var slug=btn.dataset.slug;
-  var isActive=btn.getAttribute('data-active')==='1';
-  // reset all buttons
-  document.querySelectorAll('#cal-child-row .child-btn').forEach(function(b){
-    b.className='child-btn child-btn-'+b.dataset.slug;
-    b.removeAttribute('data-active');
-  });
-  // toggle off if was active
-  if(isActive){
-    detail.innerHTML='';
-    return;
-  }
-  btn.setAttribute('data-active','1');
-  btn.classList.add('active-'+btn.dataset.slug);
-  var name=btn.dataset.name;
-  var rows=[];
-  schedule.forEach(function(row){
-    var tasks=[];
-    if(row.lucy===name)  tasks.push({label:'לוסי 🐕',cls:'tp-lucy'});
-    if(row.dish===name)  tasks.push({label:'מדיח 🍽️',cls:'tp-dish'});
-    if(row.trash===name) tasks.push({label:'זבל 🗑️',cls:'tp-trash'});
-    if(row.toilet1===name||row.toilet2===name) tasks.push({label:'שירותים 🚽',cls:'tp-toilet'});
-    if(row.binWash && name==='יאיר') tasks.push({label:'שטיפת פח 🪣',cls:'tp-binwash'});
-    if(tasks.length>0) rows.push({date:row.date,tasks:tasks});
-  });
-  var color=COLORS[name];
-  var html='<div style="font-family:Rubik,sans-serif;font-weight:800;font-size:0.95rem;color:'+color+';margin-bottom:10px;">'+name+' — '+rows.length+' ימים</div>';
-  html+='<div class="personal-list">';
-  rows.forEach(function(row){
-    var cls=isToday(row.date)?' today-personal':'';
-    var pills=row.tasks.map(function(t){return '<span class="task-pill '+t.cls+'">'+t.label+'</span>';}).join('');
-    html+='<div class="personal-row'+cls+'">'+
-      '<span class="personal-date">'+formatDate(row.date)+'</span>'+
-      '<span class="personal-day">'+DAYS_HE[row.date.getDay()]+'</span>'+
-      '<div class="personal-tasks">'+pills+'</div></div>';
-  });
-  html+='</div>';
-  document.getElementById('cal-child-detail').innerHTML=html;
-});
 
 // ═══ PANEL TOGGLE ═══
 document.getElementById('shop-card').addEventListener('click', function(){
@@ -1525,6 +1469,25 @@ function startFirebaseSync() {
       buildDayCards(todayData, 'today-cards', 'today-date-label');
       buildDayCards(tomorrowData, 'tomorrow-cards', 'tomorrow-date-label');
     }
+  });
+
+  // ── INCOMING FROM ZAPIER/BASE44 ──
+  // Zapier POSTs to /incoming.json — each POST creates a new child node.
+  // We read new children, convert them into shop items, then remove them.
+  db.ref('incoming').on('child_added', function(snap) {
+    var raw = snap.val();
+    var ref = snap.ref;
+    if(!raw){ ref.remove(); return; }
+    var name = (raw.name || raw.product || raw.title || '').toString().trim();
+    if(!name){ ref.remove(); return; }
+    var qty = (raw.qty || raw.quantity || raw.amount || '').toString().trim();
+    var cat = (raw.category || raw.cat || '').toString().trim();
+    if(!CAT_META[cat]) cat = autoCategory(name);
+    shopItems.push({ id: Date.now() + Math.floor(Math.random()*1000), name: name, qty: qty, cat: cat, done: false });
+    saveShop();
+    renderShopGrid();
+    // Clean up the processed entry so /incoming doesn't grow forever
+    ref.remove();
   });
 
   // ── FRIDAY ──
