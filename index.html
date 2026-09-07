@@ -442,6 +442,11 @@
     <div id="admin-task-grid" class="shop-grid"></div>
   </div>
   <div class="card" style="margin-top:12px;">
+    <div class="sec-title">🔧 בדיקת חיבור Firebase</div>
+    <button onclick="runFirebaseDiag()" style="font-family:Heebo,sans-serif;font-size:0.85rem;font-weight:600;padding:8px 20px;border:2px solid #4ecdc4;border-radius:50px;background:white;color:#4ecdc4;cursor:pointer;">הרץ בדיקה</button>
+    <div id="fb-diag-result" style="margin-top:10px;font-family:monospace;font-size:0.76rem;white-space:pre-wrap;background:#fafafa;border-radius:10px;padding:10px;display:none;direction:ltr;text-align:left;"></div>
+  </div>
+  <div class="card" style="margin-top:12px;">
     <div class="sec-title">🔓 התנתקות</div>
     <button onclick="adminLogout()" style="font-family:Heebo,sans-serif;font-size:0.85rem;font-weight:600;padding:8px 20px;border:2px solid #ff6b6b;border-radius:50px;background:white;color:#ff6b6b;cursor:pointer;">יציאה ממצב מנהל</button>
   </div>
@@ -1702,6 +1707,71 @@ function submitAdminPin(){
 document.getElementById('admin-pin-input').addEventListener('keydown', function(e){
   if(e.key==='Enter') submitAdminPin();
 });
+
+function runFirebaseDiag(){
+  var out=document.getElementById('fb-diag-result');
+  if(!out) return;
+  out.style.display='block';
+  var lines=[];
+  function log(l){ lines.push(l); out.textContent=lines.join('\n'); }
+
+  log('🔍 מתחיל בדיקה...');
+
+  if(typeof firebase==='undefined'){
+    log('❌ Firebase SDK לא נטען בכלל');
+    return;
+  }
+  log('✅ Firebase SDK נטען');
+
+  if(!db){
+    log('❌ db הוא null - לא הצליח להתחבר');
+    return;
+  }
+  log('✅ db מחובר');
+
+  try{
+    var user = firebase.auth().currentUser;
+    if(user){
+      log('✅ מאומת אנונימית. UID: '+user.uid.substring(0,8)+'...');
+    } else {
+      log('❌ אין משתמש מאומת (auth().currentUser is null)');
+      log('   ⚠️ כנראה Anonymous Authentication לא מופעל ב-Firebase Console');
+    }
+  }catch(e){
+    log('❌ שגיאה בבדיקת auth: '+e.message);
+  }
+
+  log('📖 בודק הרשאת קריאה מ-shop/items...');
+  db.ref('shop/items').once('value').then(function(snap){
+    log('✅ קריאה הצליחה. מספר פריטים: '+(snap.val()?snap.val().length:0));
+
+    log('✏️ בודק הרשאת כתיבה ל-shop/items...');
+    var testMarker = '__diag_test__';
+    return db.ref('shop/items').once('value').then(function(s2){
+      var arr = s2.val() || [];
+      var testArr = arr.concat([{id:'diag',name:testMarker,qty:'',cat:'אחר',done:false}]);
+      return db.ref('shop/items').set(testArr);
+    });
+  }).then(function(){
+    log('✅ כתיבה הצליחה!');
+    // Clean up the test item
+    return db.ref('shop/items').once('value');
+  }).then(function(snap){
+    var arr = (snap.val()||[]).filter(function(x){ return x.id !== 'diag'; });
+    db.ref('shop/items').set(arr);
+    log('🧹 ניקוי בוצע');
+    log('');
+    log('✅✅✅ הכל תקין! הבעיה כנראה במקום אחר.');
+  }).catch(function(e){
+    log('❌ שגיאה: '+(e.code||'')+' '+(e.message||e));
+    if((e.code||'').indexOf('PERMISSION_DENIED')!==-1 || (e.message||'').indexOf('permission_denied')!==-1){
+      log('');
+      log('👉 זו בעיית הרשאות! כנראה Anonymous Authentication');
+      log('   לא מופעל ב-Firebase Console, או שהחוקים לא פורסמו.');
+    }
+  });
+}
+
 checkAdminSession();
 
 // Generate app icon as PNG
