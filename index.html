@@ -447,6 +447,11 @@
     <div id="fb-diag-result" style="margin-top:10px;font-family:monospace;font-size:0.76rem;white-space:pre-wrap;background:#fafafa;border-radius:10px;padding:10px;display:none;direction:ltr;text-align:left;"></div>
   </div>
   <div class="card" style="margin-top:12px;">
+    <div class="sec-title">📦 מה יש כרגע ב-incoming</div>
+    <button onclick="checkIncoming()" style="font-family:Heebo,sans-serif;font-size:0.85rem;font-weight:600;padding:8px 20px;border:2px solid #f7a440;border-radius:50px;background:white;color:#f7a440;cursor:pointer;">בדוק incoming</button>
+    <div id="incoming-check-result" style="margin-top:10px;font-family:monospace;font-size:0.76rem;white-space:pre-wrap;background:#fafafa;border-radius:10px;padding:10px;display:none;direction:ltr;text-align:left;"></div>
+  </div>
+  <div class="card" style="margin-top:12px;">
     <div class="sec-title">🔓 התנתקות</div>
     <button onclick="adminLogout()" style="font-family:Heebo,sans-serif;font-size:0.85rem;font-weight:600;padding:8px 20px;border:2px solid #ff6b6b;border-radius:50px;background:white;color:#ff6b6b;cursor:pointer;">יציאה ממצב מנהל</button>
   </div>
@@ -1787,6 +1792,31 @@ function runFirebaseDiag(){
       log('👉 זו בעיית הרשאות! כנראה Anonymous Authentication');
       log('   לא מופעל ב-Firebase Console, או שהחוקים לא פורסמו.');
     }
+  });
+}
+
+
+function checkIncoming(){
+  var out=document.getElementById('incoming-check-result');
+  if(!out) return;
+  out.style.display='block';
+  out.textContent='🔍 בודק...';
+  if(!db){ out.textContent='❌ db לא מחובר'; return; }
+  db.ref('incoming').once('value').then(function(snap){
+    var data = snap.val();
+    if(!data){
+      out.textContent = '📭 incoming ריק — אין שם כלום כרגע.';
+      return;
+    }
+    var lines = ['📦 נמצאו פריטים ב-incoming:', ''];
+    Object.keys(data).forEach(function(key){
+      lines.push('--- ' + key + ' ---');
+      lines.push(JSON.stringify(data[key], null, 2));
+      lines.push('');
+    });
+    out.textContent = lines.join('\n');
+  }).catch(function(e){
+    out.textContent = '❌ שגיאה: ' + (e.code||'') + ' ' + (e.message||e);
   });
 }
 
