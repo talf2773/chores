@@ -1479,15 +1479,33 @@ function startFirebaseSync() {
   // ── INCOMING FROM ZAPIER/BASE44 ──
   // Zapier POSTs to /incoming.json — each POST creates a new child node.
   // We read new children, convert them into shop items, then remove them.
+  // Case-insensitive, multi-alias field lookup — works regardless of
+  // how Zapier/Base44 capitalized or named their fields.
+  function findField(obj, aliases) {
+    var keys = Object.keys(obj || {});
+    for (var i = 0; i < aliases.length; i++) {
+      for (var j = 0; j < keys.length; j++) {
+        if (keys[j].toLowerCase().replace(/[\s_-]/g,'') === aliases[i]) {
+          var v = obj[keys[j]];
+          if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();
+        }
+      }
+    }
+    return '';
+  }
+
   db.ref('incoming').on('child_added', function(snap) {
     var raw = snap.val();
     var ref = snap.ref;
-    if(!raw){ ref.remove(); return; }
-    var name = (raw.name || raw.product || raw.title || '').toString().trim();
+    if(!raw || typeof raw !== 'object'){ ref.remove(); return; }
+
+    var name = findField(raw, ['name','productname','product','title','item','itemname']);
     if(!name){ ref.remove(); return; }
-    var qty = (raw.qty || raw.quantity || raw.amount || '').toString().trim();
-    var cat = (raw.category || raw.cat || '').toString().trim();
+
+    var qty = findField(raw, ['qty','quantity','amount','count']);
+    var cat = findField(raw, ['category','cat','type']);
     if(!CAT_META[cat]) cat = autoCategory(name);
+
     shopItems.push({ id: Date.now() + Math.floor(Math.random()*1000), name: name, qty: qty, cat: cat, done: false });
     saveShop();
     renderShopGrid();
