@@ -1515,9 +1515,17 @@ function startFirebaseSync() {
       try { raw = JSON.parse(raw); } catch(e) { /* leave as string, handled below */ }
     }
 
+    // Base44 wraps the actual item fields inside a nested "data" object:
+    // { app_id, data: { name, checked, ... }, event, event_type }
+    // Merge nested "data" on top of the envelope so we search both levels.
+    var searchObj = raw;
+    if (typeof raw === 'object' && raw !== null && typeof raw.data === 'object' && raw.data !== null) {
+      searchObj = Object.assign({}, raw, raw.data);
+    }
+
     var name = '';
-    if (typeof raw === 'object' && raw !== null) {
-      name = findField(raw, ['name','productname','product','title','item','itemname']);
+    if (typeof searchObj === 'object' && searchObj !== null) {
+      name = findField(searchObj, ['name','productname','product','title','item','itemname']);
     } else if (typeof raw === 'string' && raw.trim()) {
       // Last resort: the whole value IS the name (e.g. incoming/xxxx = "Milk")
       name = raw.trim();
@@ -1529,8 +1537,8 @@ function startFirebaseSync() {
       return;
     }
 
-    var qty = (typeof raw === 'object') ? findField(raw, ['qty','quantity','amount','count']) : '';
-    var cat = (typeof raw === 'object') ? findField(raw, ['category','cat','type']) : '';
+    var qty = (typeof searchObj === 'object') ? findField(searchObj, ['qty','quantity','amount','count']) : '';
+    var cat = (typeof searchObj === 'object') ? findField(searchObj, ['category','cat','type']) : '';
     if(!CAT_META[cat]) cat = autoCategory(name);
 
     shopItems.push({ id: Date.now() + Math.floor(Math.random()*1000), name: name, qty: qty, cat: cat, done: false });
