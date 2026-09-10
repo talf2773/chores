@@ -452,6 +452,11 @@
     <div id="incoming-check-result" style="margin-top:10px;font-family:monospace;font-size:0.76rem;white-space:pre-wrap;background:#fafafa;border-radius:10px;padding:10px;display:none;direction:ltr;text-align:left;"></div>
   </div>
   <div class="card" style="margin-top:12px;">
+    <div class="sec-title">🐛 מה בדיוק Zapier שלח (raw data)</div>
+    <button onclick="checkIncomingDebug()" style="font-family:Heebo,sans-serif;font-size:0.85rem;font-weight:600;padding:8px 20px;border:2px solid #ff6b6b;border-radius:50px;background:white;color:#ff6b6b;cursor:pointer;">בדוק raw data</button>
+    <div id="incoming-debug-result" style="margin-top:10px;font-family:monospace;font-size:0.76rem;white-space:pre-wrap;background:#fafafa;border-radius:10px;padding:10px;display:none;direction:ltr;text-align:left;"></div>
+  </div>
+  <div class="card" style="margin-top:12px;">
     <div class="sec-title">🔓 התנתקות</div>
     <button onclick="adminLogout()" style="font-family:Heebo,sans-serif;font-size:0.85rem;font-weight:600;padding:8px 20px;border:2px solid #ff6b6b;border-radius:50px;background:white;color:#ff6b6b;cursor:pointer;">יציאה ממצב מנהל</button>
   </div>
@@ -1502,13 +1507,30 @@ function startFirebaseSync() {
   db.ref('incoming').on('child_added', function(snap) {
     var raw = snap.val();
     var ref = snap.ref;
-    if(!raw || typeof raw !== 'object'){ ref.remove(); return; }
+    if(raw === null || raw === undefined){ ref.remove(); return; }
 
-    var name = findField(raw, ['name','productname','product','title','item','itemname']);
-    if(!name){ ref.remove(); return; }
+    // Some webhook senders deliver the payload as a raw JSON *string*
+    // instead of a structured object — try to parse it if so.
+    if (typeof raw === 'string') {
+      try { raw = JSON.parse(raw); } catch(e) { /* leave as string, handled below */ }
+    }
 
-    var qty = findField(raw, ['qty','quantity','amount','count']);
-    var cat = findField(raw, ['category','cat','type']);
+    var name = '';
+    if (typeof raw === 'object' && raw !== null) {
+      name = findField(raw, ['name','productname','product','title','item','itemname']);
+    } else if (typeof raw === 'string' && raw.trim()) {
+      // Last resort: the whole value IS the name (e.g. incoming/xxxx = "Milk")
+      name = raw.trim();
+    }
+
+    if(!name){
+      try{ if(db) db.ref('incoming_debug').push({raw: JSON.stringify(raw), ts: Date.now()}); }catch(e){}
+      ref.remove();
+      return;
+    }
+
+    var qty = (typeof raw === 'object') ? findField(raw, ['qty','quantity','amount','count']) : '';
+    var cat = (typeof raw === 'object') ? findField(raw, ['category','cat','type']) : '';
     if(!CAT_META[cat]) cat = autoCategory(name);
 
     shopItems.push({ id: Date.now() + Math.floor(Math.random()*1000), name: name, qty: qty, cat: cat, done: false });
@@ -1812,6 +1834,34 @@ function checkIncoming(){
     Object.keys(data).forEach(function(key){
       lines.push('--- ' + key + ' ---');
       lines.push(JSON.stringify(data[key], null, 2));
+      lines.push('');
+    });
+    out.textContent = lines.join('\n');
+  }).catch(function(e){
+    out.textContent = '❌ שגיאה: ' + (e.code||'') + ' ' + (e.message||e);
+  });
+}
+
+
+function checkIncomingDebug(){
+  var out=document.getElementById('incoming-debug-result');
+  if(!out) return;
+  out.style.display='block';
+  out.textContent='🔍 בודק...';
+  if(!db){ out.textContent='❌ db לא מחובר'; return; }
+  db.ref('incoming_debug').once('value').then(function(snap){
+    var data = snap.val();
+    if(!data){
+      out.textContent = '📭 אין נתוני debug — אולי הפריט כן נמצא בהצלחה, או שלא נכשל אף פעם.';
+      return;
+    }
+    var lines = ['🐛 נתונים גולמיים שלא זוהו:', ''];
+    var keys = Object.keys(data).sort(function(a,b){ return (data[b].ts||0)-(data[a].ts||0); });
+    keys.forEach(function(key){
+      var entry = data[key];
+      var date = entry.ts ? new Date(entry.ts).toLocaleString('he-IL') : '?';
+      lines.push('--- ' + date + ' ---');
+      lines.push(entry.raw || '(ריק)');
       lines.push('');
     });
     out.textContent = lines.join('\n');
